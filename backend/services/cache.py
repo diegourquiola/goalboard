@@ -31,3 +31,8 @@ class TTLCache:
     def clear(self):
         with self._lock:
             self._store.clear()
+
+    def stats(self) -> dict:
+        """Return a snapshot of cache size (does not evict expired entries)."""
+        with self._lock:
+            return {"entries": len(self._store)}

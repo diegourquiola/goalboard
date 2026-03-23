@@ -21,3 +21,24 @@ def test_valid_match_query():
 def test_invalid_status():
     with pytest.raises(ValidationError):
         MatchQuery(league="PL", status="BANANA")
+
+
+def test_matchday_and_date_from_mutually_exclusive():
+    with pytest.raises(ValidationError):
+        MatchQuery(league="PL", matchday=3, date_from="2024-09-01")
+
+
+def test_date_to_before_date_from_rejected():
+    with pytest.raises(ValidationError):
+        MatchQuery(league="PL", date_from="2024-09-10", date_to="2024-09-01")
+
+
+def test_date_to_equals_date_from_is_valid():
+    mq = MatchQuery(league="PL", date_from="2024-09-01", date_to="2024-09-01")
+    assert mq.date_from == "2024-09-01"
+
+
+def test_empty_query_is_valid():
+    mq = MatchQuery(league="PL")
+    assert mq.matchday is None
+    assert mq.date_from is None

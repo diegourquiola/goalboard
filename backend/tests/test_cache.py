@@ -35,3 +35,11 @@ def test_clear():
     cache.clear()
     assert cache.get("a") is None
     assert cache.get("b") is None
+
+
+def test_stats():
+    cache = TTLCache()
+    cache.set("x", 1, ttl=60)
+    cache.set("y", 2, ttl=60)
+    stats = cache.stats()
+    assert stats["entries"] == 2

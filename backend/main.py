@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import standings, matches, teams
+from routers import standings, matches, teams, leagues
 
 app = FastAPI(title="GoalBoard API", version="0.1.0")
 
@@ -16,8 +16,9 @@ app.add_middleware(
 app.include_router(standings.router, prefix="/api")
 app.include_router(matches.router,   prefix="/api")
 app.include_router(teams.router,     prefix="/api")
+app.include_router(leagues.router,   prefix="/api")
 
 
-@app.get("/health")
+@app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "service": "goalboard-api"}
