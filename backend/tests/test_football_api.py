@@ -19,28 +19,47 @@ def mock_response(data: dict):
 
 def test_get_standings_calls_correct_url():
     sample = {
-        "id": 228,
-        "league": {"id": 228, "name": "Premier League"},
-        "stage": []
+        "response": [{
+            "league": {
+                "id": 39,
+                "name": "Premier League",
+                "standings": [[{
+                    "rank": 1,
+                    "team": {"id": 40, "name": "Liverpool", "logo": ""},
+                    "points": 84,
+                    "goalsDiff": 45,
+                    "all": {"played": 38, "win": 25, "draw": 9, "lose": 4,
+                            "goals": {"for": 86, "against": 41}},
+                    "form": "DLDLW",
+                }]]
+            }
+        }]
     }
     with patch("services.football_api.httpx.Client") as mock_client_cls:
         mock_client = mock_client_cls.return_value.__enter__.return_value
         mock_client.get.return_value = mock_response(sample)
         result = football_api.get_standings("PL")
 
-    # Check that the correct URL and params were used
     call_args = mock_client.get.call_args
-    assert "https://api.soccerdataapi.com/standing/" in call_args[0][0]
-    assert call_args[1]["params"]["league_id"] == 228
-    assert "auth_token" in call_args[1]["params"]
-    assert result == sample
+    assert "https://v3.football.api-sports.io/standings" in call_args[0][0]
+    assert call_args[1]["params"]["league"] == 39
+    assert call_args[1]["params"]["season"] == football_api.CURRENT_SEASON
+    # Verify transformed output
+    rows = result["stage"][0]["standings"]
+    assert len(rows) == 1
+    assert rows[0]["team_name"] == "Liverpool"
+    assert rows[0]["points"] == 84
 
 
 def test_get_standings_uses_cache():
     sample = {
-        "id": 228,
-        "league": {"id": 228, "name": "Premier League"},
-        "stage": []
+        "response": [{
+            "league": {
+                "id": 39,
+                "name": "Premier League",
+                "standings": [[]]
+            }
+        }]
     }
     with patch("services.football_api.httpx.Client") as mock_client_cls:
         mock_client = mock_client_cls.return_value.__enter__.return_value
@@ -53,42 +72,82 @@ def test_get_standings_uses_cache():
 
 
 def test_get_matches_with_date_filters():
-    sample = [{
-        "league_id": 228,
-        "league_name": "Premier League",
-        "matches": []
-    }]
+    sample = {
+        "response": [{
+            "fixture": {"id": 1, "date": "2024-09-15T15:00:00+00:00",
+                        "status": {"long": "Match Finished", "short": "FT", "elapsed": 90}},
+            "teams": {"home": {"id": 1, "name": "Team A"}, "away": {"id": 2, "name": "Team B"}},
+            "goals": {"home": 2, "away": 1},
+        }]
+    }
     with patch("services.football_api.httpx.Client") as mock_client_cls:
         mock_client = mock_client_cls.return_value.__enter__.return_value
         mock_client.get.return_value = mock_response(sample)
-        football_api.get_matches("PL", date_from="2024-09-01", date_to="2024-09-30")
+        result = football_api.get_matches("PL", date_from="2024-09-01", date_to="2024-09-30")
 
     call_args = mock_client.get.call_args
     params = call_args[1]["params"]
-    assert params["league_id"] == 228
-    assert params["date_from"] == "2024-09-01"
-    assert params["date_to"] == "2024-09-30"
+    assert params["league"] == 39
+    assert params["from"] == "2024-09-01"
+    assert params["to"] == "2024-09-30"
+    # Verify transformed output
+    matches = result[0]["matches"]
+    assert len(matches) == 1
+    assert matches[0]["teams"]["home"]["name"] == "Team A"
+    assert matches[0]["status"] == "finished"
 
 
-def test_request_uses_gzip_header():
-    """Ensure Accept-Encoding: gzip header is passed to the HTTP client."""
-    sample = {
-        "id": 228,
-        "league": {"id": 228, "name": "Premier League"},
-        "stage": []
-    }
+def test_request_uses_api_key_header():
+    """Ensure x-apisports-key header is passed to the HTTP client."""
+    sample = {"response": [{"league": {"id": 39, "name": "PL", "standings": [[]]}}]}
     with patch("services.football_api.httpx.Client") as mock_client_cls:
         mock_client = mock_client_cls.return_value.__enter__.return_value
         mock_client.get.return_value = mock_response(sample)
         football_api.get_standings("PL")
 
-    # httpx.Client is instantiated with headers
     _, kwargs = mock_client_cls.call_args
-    assert "Accept-Encoding" in kwargs.get("headers", {})
-    assert kwargs["headers"]["Accept-Encoding"] == "gzip"
+    assert "x-apisports-key" in kwargs.get("headers", {})
 
 
 def test_invalid_league_code_raises_error():
     """Test that invalid league codes raise ValueError."""
     with pytest.raises(ValueError, match="Unsupported league code"):
         football_api.get_standings("XYZ")
+
+
+# ── Task 1 tests ──────────────────────────────────────────────────────────────
+
+def _make_fixture(fixture_id=1, home_id=33, away_id=40, status="FT",
+                  venue_name="Wembley", venue_city="London",
+                  home_score=2, away_score=1):
+    return {
+        "fixture": {
+            "id": fixture_id,
+            "date": "2025-01-01T15:00:00+00:00",
+            "status": {"short": status, "elapsed": 90},
+            "venue": {"name": venue_name, "city": venue_city},
+        },
+        "teams": {
+            "home": {"id": home_id, "name": "Man United", "logo": "https://logo/33.png"},
+            "away": {"id": away_id, "name": "Liverpool",  "logo": "https://logo/40.png"},
+        },
+        "goals": {"home": home_score, "away": away_score},
+        "statistics": [],
+    }
+
+
+def test_parse_fixture_includes_venue():
+    from services.football_api import _parse_fixture
+    result = _parse_fixture(_make_fixture())
+    assert result["venue"]["name"] == "Wembley"
+    assert result["venue"]["city"] == "London"
+
+
+def test_get_league_id_accepts_numeric_string():
+    from services.football_api import _get_league_id
+    assert _get_league_id("39") == 39
+
+
+def test_get_league_id_accepts_code():
+    from services.football_api import _get_league_id
+    assert _get_league_id("PL") == 39

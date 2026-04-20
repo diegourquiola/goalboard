@@ -5,45 +5,37 @@ from .cache import TTLCache
 
 load_dotenv()
 
-BASE_URL = "https://api.soccerdataapi.com"
+BASE_URL = "https://v3.football.api-sports.io"
 API_KEY = os.getenv("SOCCER_API_KEY")
 
-# Shared cache: standings TTL 5 min, matches 2 min, teams 10 min
 _cache = TTLCache()
 
 HEADERS = {
-    "Accept-Encoding": "gzip",
-    "Content-Type": "application/json",
+    "x-apisports-key": API_KEY,
 }
 
-# Map league codes to Soccerdata API league IDs
-# Based on common league mappings
+# API-Football league IDs
 LEAGUE_ID_MAP = {
-    "PL": 228,    # Premier League
-    "PD": 237,    # La Liga
-    "BL1": 235,   # Bundesliga
-    "SA": 236,    # Serie A
-    "FL1": 233,   # Ligue 1
-    "CL": 239,    # Champions League
+    "PL": 39,     # Premier League
+    "PD": 140,    # La Liga
+    "BL1": 78,    # Bundesliga
+    "SA": 135,    # Serie A
+    "FL1": 61,    # Ligue 1
+    "CL": 2,      # Champions League
 }
+
+CURRENT_SEASON = 2025  # 2025-26 season
 
 
 def _get(path: str, params: dict | None = None, ttl: int = 300) -> dict:
-    """Internal GET helper with caching and gzip support."""
-    # Build cache key including params
     cache_key = path
     if params:
         param_str = "&".join(f"{k}={v}" for k, v in sorted(params.items()))
         cache_key = f"{path}?{param_str}"
-    
+
     cached = _cache.get(cache_key)
     if cached is not None:
         return cached
-
-    # Add auth_token to params
-    if params is None:
-        params = {}
-    params["auth_token"] = API_KEY
 
     with httpx.Client(headers=HEADERS, timeout=10) as client:
         response = client.get(f"{BASE_URL}{path}", params=params)
@@ -54,41 +46,159 @@ def _get(path: str, params: dict | None = None, ttl: int = 300) -> dict:
     return data
 
 
+def _get_league_id(league_code: str) -> int:
+    try:
+        return int(league_code)
+    except (ValueError, TypeError):
+        pass
+    league_id = LEAGUE_ID_MAP.get(str(league_code).upper())
+    if not league_id:
+        raise ValueError(f"Unsupported league code: {league_code}")
+    return league_id
+
+
 def get_standings(league_code: str) -> dict:
-    """Get standings by league code (converts to league_id internally)."""
-    league_id = LEAGUE_ID_MAP.get(league_code.upper())
-    if not league_id:
-        raise ValueError(f"Unsupported league code: {league_code}")
-    
-    return _get("/standing/", params={"league_id": league_id}, ttl=300)
+    league_id = _get_league_id(league_code)
+    raw = _get("/standings", params={"league": league_id, "season": CURRENT_SEASON}, ttl=300)
+
+    # Transform to match frontend expectations
+    response = raw.get("response", [])
+    if not response:
+        return {"stage": [{"standings": []}]}
+
+    league_data = response[0].get("league", {})
+    api_standings = league_data.get("standings", [[]])[0]
+
+    standings = []
+    for row in api_standings:
+        team = row.get("team", {})
+        all_stats = row.get("all", {})
+        goals = all_stats.get("goals", {})
+        gf = goals.get("for") or 0
+        ga = goals.get("against") or 0
+        standings.append({
+            "position": row.get("rank"),
+            "team_id": team.get("id"),
+            "team_name": team.get("name"),
+            "team_logo": team.get("logo"),
+            "games_played": all_stats.get("played") or 0,
+            # field names used by both StandingsScreen and TrendsScreen
+            "wins": all_stats.get("win") or 0,
+            "draws": all_stats.get("draw") or 0,
+            "losses": all_stats.get("lose") or 0,
+            "goals_for": gf,
+            "goals_against": ga,
+            "goal_difference": row.get("goalsDiff") or (gf - ga),
+            "points": row.get("points") or 0,
+            "form": row.get("form") or "",
+        })
+
+    return {
+        "league": {"name": league_data.get("name", league_code)},
+        "stage": [{"standings": standings}],
+    }
 
 
-def get_matches(league_code: str, matchday: int | None = None, status: str | None = None, 
-                date_from: str | None = None, date_to: str | None = None) -> dict:
-    """Get matches by league code with optional filters."""
-    league_id = LEAGUE_ID_MAP.get(league_code.upper())
-    if not league_id:
-        raise ValueError(f"Unsupported league code: {league_code}")
-    
-    params = {"league_id": league_id}
-    
-    # Note: Soccerdata API uses 'date_from' and 'date_to' for filtering
+LIVE_STATUSES = {"1H", "2H", "HT", "ET", "BT", "P", "LIVE"}
+
+
+def _parse_fixture(f: dict) -> dict:
+    fixture = f.get("fixture", {})
+    teams = f.get("teams", {})
+    goals = f.get("goals", {})
+    status_info = fixture.get("status", {})
+    statistics = f.get("statistics", [])
+
+    status_short = status_info.get("short", "")
+    is_live = status_short in LIVE_STATUSES
+    is_finished = status_short in ("FT", "AET", "PEN")
+    status_text = "finished" if is_finished else "live" if is_live else "pre-match"
+
+    # Parse per-team statistics (pro plan returns these for live/finished matches)
+    stats = {}
+    for team_stat in statistics:
+        side = "home" if team_stat.get("team", {}).get("id") == teams.get("home", {}).get("id") else "away"
+        for s in team_stat.get("statistics", []):
+            stype = s.get("type", "")
+            val = s.get("value") or 0
+            if stype == "Ball Possession":
+                try:
+                    val = int(str(val).replace("%", ""))
+                except (ValueError, TypeError):
+                    val = 0
+                stats[f"possession_{side}"] = val
+            elif stype == "Shots on Goal":
+                stats[f"shots_{side}"] = val
+            elif stype == "Corner Kicks":
+                stats[f"corners_{side}"] = val
+            elif stype == "Total passes":
+                stats[f"passes_{side}"] = val
+            elif stype == "Fouls":
+                stats[f"fouls_{side}"] = val
+
+    return {
+        "id": fixture.get("id"),
+        "date": fixture.get("date"),
+        "status": status_text,
+        "minute": status_info.get("elapsed"),
+        "venue": {
+            "name": fixture.get("venue", {}).get("name"),
+            "city": fixture.get("venue", {}).get("city"),
+        },
+        "teams": {
+            "home": {
+                "id": teams.get("home", {}).get("id"),
+                "name": teams.get("home", {}).get("name"),
+                "logo": teams.get("home", {}).get("logo"),
+            },
+            "away": {
+                "id": teams.get("away", {}).get("id"),
+                "name": teams.get("away", {}).get("name"),
+                "logo": teams.get("away", {}).get("logo"),
+            },
+        },
+        "score": {
+            "home": goals.get("home"),
+            "away": goals.get("away"),
+        },
+        "stats": stats if stats else None,
+    }
+
+
+def get_matches(league_code: str, matchday: int | None = None, status: str | None = None,
+                date_from: str | None = None, date_to: str | None = None) -> list:
+    league_id = _get_league_id(league_code)
+    params = {"league": league_id, "season": CURRENT_SEASON}
+
     if date_from:
-        params["date_from"] = date_from
+        params["from"] = date_from
     if date_to:
-        params["date_to"] = date_to
-    
-    # Note: Soccerdata API doesn't have direct 'matchday' or 'status' filters
-    # These would need to be filtered client-side from the results
-    
-    return _get("/matches/", params=params, ttl=120)
+        params["to"] = date_to
+    if status:
+        status_map = {"finished": "FT", "pre-match": "NS", "live": "1H-2H-HT-ET-BT-P"}
+        params["status"] = status_map.get(status.lower(), status)
+
+    # Full-season fetch: 5 min TTL. Date-filtered with today: 30s. Others: 2 min.
+    if not date_from and not date_to:
+        ttl = 300   # full season, refresh every 5 min
+    elif date_from and date_from <= str(__import__('datetime').date.today()) <= (date_to or date_from):
+        ttl = 30    # includes today → may have live matches
+    else:
+        ttl = 120
+    raw = _get("/fixtures", params=params, ttl=ttl)
+    fixtures = raw.get("response", [])
+
+    matches = [_parse_fixture(f) for f in fixtures]
+    return [{"league_id": league_id, "league_name": league_code, "matches": matches}]
 
 
 def get_team(team_id: int) -> dict:
-    """Get team details by team_id."""
-    return _get("/team/", params={"team_id": team_id}, ttl=600)
+    raw = _get("/teams", params={"id": team_id}, ttl=600)
+    response = raw.get("response", [])
+    if not response:
+        raise ValueError(f"Team not found: {team_id}")
+    return response[0]
 
 
 def get_leagues() -> dict:
-    """Get all available leagues."""
-    return _get("/league/", ttl=3600)
+    return _get("/leagues", params={"season": CURRENT_SEASON}, ttl=3600)
