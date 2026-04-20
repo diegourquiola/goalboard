@@ -1,31 +1,30 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, Modal,
+  View, Text, FlatList, TouchableOpacity, Modal, Image,
   ScrollView, RefreshControl, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import api from '../services/api';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
+import { useTheme } from '../theme/ThemeContext';
 
 const LEAGUES = [
-  { code: 'PL',  label: 'Premier League' },
-  { code: 'PD',  label: 'La Liga' },
-  { code: 'BL1', label: 'Bundesliga' },
-  { code: 'SA',  label: 'Serie A' },
-  { code: 'FL1', label: 'Ligue 1' },
-  { code: 'CL',  label: 'Champions League' },
+  { code: 'PL',  label: 'Premier League', logo: 'https://media.api-sports.io/football/leagues/39.png' },
+  { code: 'PD',  label: 'La Liga',        logo: 'https://media.api-sports.io/football/leagues/140.png' },
+  { code: 'BL1', label: 'Bundesliga',     logo: 'https://media.api-sports.io/football/leagues/78.png' },
+  { code: 'SA',  label: 'Serie A',        logo: 'https://media.api-sports.io/football/leagues/135.png' },
+  { code: 'FL1', label: 'Ligue 1',        logo: 'https://media.api-sports.io/football/leagues/61.png' },
+  { code: 'CL',  label: 'Champions League', logo: 'https://media.api-sports.io/football/leagues/2.png' },
 ];
 
 export default function StandingsScreen() {
+  const { colors, isDark } = useTheme();
   const [league, setLeague] = useState('PL');
   const [standings, setStandings] = useState([]);
   const [leagueName, setLeagueName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState(null);
-  const [teamStats, setTeamStats] = useState(null);
-  const [teamStatsLoading, setTeamStatsLoading] = useState(false);
 
   const fetchStandings = useCallback(async (code) => {
     setLoading(true);
@@ -44,97 +43,92 @@ export default function StandingsScreen() {
 
   useEffect(() => { fetchStandings(league); }, [league]);
 
-  const fetchTeamStats = useCallback(async (teamId) => {
-    setTeamStatsLoading(true);
-    setTeamStats(null);
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const past = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const { data } = await api.get(`/api/matches/${league}`, {
-        params: { date_from: past, date_to: today },
-      });
-      const allMatches = (Array.isArray(data) ? data : [])
-        .flatMap(group => group.matches ?? []);
-
-      // Filter finished matches involving this team
-      const teamMatches = allMatches
-        .filter(m => {
-          const homeId = m.teams?.home?.id;
-          const awayId = m.teams?.away?.id;
-          return (homeId === teamId || awayId === teamId) &&
-                 m.status?.toLowerCase() === 'finished';
-        })
-        .sort((a, b) => new Date(a.date ?? a.match_date) - new Date(b.date ?? b.match_date));
-
-      // Form: W/D/L for last 5 finished matches
-      const form = teamMatches.slice(-5).map(m => {
-        const isHome = m.teams?.home?.id === teamId;
-        const goalsFor     = isHome ? (m.score?.home ?? 0) : (m.score?.away ?? 0);
-        const goalsAgainst = isHome ? (m.score?.away ?? 0) : (m.score?.home ?? 0);
-        if (goalsFor > goalsAgainst) return 'W';
-        if (goalsFor < goalsAgainst) return 'L';
-        return 'D';
-      });
-
-      // Clean sheets: finished games where team conceded 0
-      const cleanSheets = teamMatches.filter(m => {
-        const isHome = m.teams?.home?.id === teamId;
-        const conceded = isHome ? (m.score?.away ?? -1) : (m.score?.home ?? -1);
-        return conceded === 0;
-      }).length;
-
-      setTeamStats({ form, cleanSheets });
-    } catch {
-      setTeamStats({ form: [], cleanSheets: null });
-    } finally {
-      setTeamStatsLoading(false);
-    }
-  }, [league]);
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchStandings(league);
     setRefreshing(false);
   }, [league, fetchStandings]);
 
-  const renderRow = ({ item: row, index }) => (
-    <TouchableOpacity
-      style={[styles.row, index % 2 === 0 && styles.rowAlt]}
-      onPress={() => { setSelectedTeam(row); fetchTeamStats(row.team_id); }}
-    >
-      <Text style={[styles.cell, styles.pos]}>{row.position}</Text>
-      <Text style={[styles.cell, styles.team]} numberOfLines={1}>{row.team_name}</Text>
-      <Text style={styles.cell}>{row.games_played}</Text>
-      <Text style={styles.cell}>{row.won}</Text>
-      <Text style={styles.cell}>{row.drawn}</Text>
-      <Text style={styles.cell}>{row.lost}</Text>
-      <Text style={styles.cell}>
-        {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
-      </Text>
-      <Text style={[styles.cell, styles.pts]}>{row.points}</Text>
-    </TouchableOpacity>
-  );
+  const getStatusIndicator = (position) => {
+    if (position <= 4) return colors.accent;
+    if (position >= 18) return '#EF4444';
+    return null;
+  };
+
+  const renderRow = ({ item: row, index }) => {
+    const indicatorColor = getStatusIndicator(row.position);
+    return (
+      <View
+        key={row.team_name ?? index}
+        style={[
+          styles.row,
+          {
+            backgroundColor: index % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
+            borderBottomWidth: index === standings.length - 1 ? 0 : 1,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
+        {indicatorColor && (
+          <View style={[styles.statusIndicator, { backgroundColor: indicatorColor }]} />
+        )}
+        <Text style={[styles.cell, styles.pos, { color: colors.mutedForeground }]}>{row.position}</Text>
+        <View style={styles.teamCell}>
+          <View style={[styles.logoWrapper, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+            {row.team_logo ? (
+              <Image source={{ uri: row.team_logo }} style={styles.teamLogo} />
+            ) : (
+              <Text style={styles.fallbackLogo}>⚽</Text>
+            )}
+          </View>
+          <Text style={[styles.teamName, { color: colors.foreground }]} numberOfLines={1}>
+            {row.team_name}
+          </Text>
+        </View>
+        <Text style={[styles.cell, { color: colors.mutedForeground }]}>{row.games_played}</Text>
+        <Text style={[styles.cell, { color: colors.mutedForeground }]}>
+          {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
+        </Text>
+        <Text style={[styles.cell, styles.pts, { color: colors.foreground }]}>{row.points}</Text>
+      </View>
+    );
+  };
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.leagueBar}
-        contentContainerStyle={styles.leagueBarContent}
-      >
-        {LEAGUES.map(l => (
-          <TouchableOpacity
-            key={l.code}
-            style={[styles.leagueBtn, league === l.code && styles.leagueBtnActive]}
-            onPress={() => setLeague(l.code)}
-          >
-            <Text style={[styles.leagueBtnText, league === l.code && styles.leagueBtnTextActive]}>
-              {l.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* League selector */}
+      <View style={styles.leagueBar}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.leagueBarContent}
+        >
+          {LEAGUES.map(l => {
+            const isSelected = league === l.code;
+            return (
+              <TouchableOpacity
+                key={l.code}
+                style={[
+                  styles.leagueBtn,
+                  {
+                    borderColor: isSelected ? colors.accent : colors.border,
+                    backgroundColor: isSelected ? colors.accent + '1A' : colors.card,
+                    borderWidth: 1,
+                  },
+                ]}
+                onPress={() => setLeague(l.code)}
+              >
+                <Text style={[
+                  styles.leagueBtnText,
+                  { color: isSelected ? colors.accent : colors.mutedForeground },
+                ]}>
+                  {l.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       {loading && <LoadingState />}
       {!loading && error && (
@@ -142,127 +136,66 @@ export default function StandingsScreen() {
       )}
 
       {!loading && !error && (
-        <>
-          <View style={[styles.row, styles.header]}>
-            <Text style={[styles.cell, styles.pos, styles.headerText]}>#</Text>
-            <Text style={[styles.cell, styles.team, styles.headerText]}>Team</Text>
-            <Text style={[styles.cell, styles.headerText]}>MP</Text>
-            <Text style={[styles.cell, styles.headerText]}>W</Text>
-            <Text style={[styles.cell, styles.headerText]}>D</Text>
-            <Text style={[styles.cell, styles.headerText]}>L</Text>
-            <Text style={[styles.cell, styles.headerText]}>GD</Text>
-            <Text style={[styles.cell, styles.pts, styles.headerText]}>Pts</Text>
+        <ScrollView 
+          style={styles.content}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+          }
+        >
+          <View style={[styles.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.cardHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.cardTitle, { color: colors.mutedForeground }]}>24/25 SEASON</Text>
+              <Text style={[styles.cardSubtitle, { color: colors.mutedForeground }]}>Updated 2m ago</Text>
+            </View>
+
+            <View style={[styles.row, styles.header, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.cell, styles.pos, styles.headerText, { color: colors.mutedForeground }]}>#</Text>
+              <View style={styles.teamCell}>
+                <Text style={[styles.headerText, { color: colors.mutedForeground }]}>CLUB</Text>
+              </View>
+              <Text style={[styles.cell, styles.headerText, { color: colors.mutedForeground }]}>MP</Text>
+              <Text style={[styles.cell, styles.headerText, { color: colors.mutedForeground }]}>GD</Text>
+              <Text style={[styles.cell, styles.pts, styles.headerText, { color: colors.mutedForeground }]}>PTS</Text>
+            </View>
+
+            {standings.map((row, index) => renderRow({ item: row, index }))}
+            
+            {standings.length === 0 && (
+              <Text style={[styles.empty, { color: colors.mutedForeground }]}>No standings data available.</Text>
+            )}
           </View>
-          <FlatList
-            data={standings}
-            keyExtractor={item => String(item.team_id ?? item.position)}
-            renderItem={renderRow}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563EB" />
-            }
-            ListEmptyComponent={
-              <Text style={styles.empty}>No standings data available.</Text>
-            }
-          />
-        </>
+          <View style={{ height: 40 }} />
+        </ScrollView>
       )}
-
-      <Modal
-        visible={!!selectedTeam}
-        animationType="slide"
-        onRequestClose={() => { setSelectedTeam(null); setTeamStats(null); }}
-      >
-        {selectedTeam && (
-          <View style={styles.modal}>
-            <TouchableOpacity style={styles.closeBtn} onPress={() => { setSelectedTeam(null); setTeamStats(null); }}>
-              <Text style={styles.closeBtnText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>{selectedTeam.team_name}</Text>
-            <Text style={styles.modalLeague}>{leagueName} · Rank #{selectedTeam.position}</Text>
-            <View style={styles.statGrid}>
-              {[
-                ['Points',        selectedTeam.points],
-                ['Played',        selectedTeam.games_played],
-                ['Won',           selectedTeam.won],
-                ['Drawn',         selectedTeam.drawn],
-                ['Lost',          selectedTeam.lost],
-                ['Goals For',     selectedTeam.goals_scored],
-                ['Goals Against', selectedTeam.goals_conceded],
-                ['Goal Diff',     selectedTeam.goal_difference > 0
-                  ? `+${selectedTeam.goal_difference}`
-                  : selectedTeam.goal_difference],
-                ['Clean Sheets',  teamStatsLoading ? '…' : (teamStats?.cleanSheets ?? '–')],
-              ].map(([label, value]) => (
-                <View key={label} style={styles.statCard}>
-                  <Text style={styles.statValue}>{value}</Text>
-                  <Text style={styles.statLabel}>{label}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Form: last 5 results */}
-            <View style={styles.formSection}>
-              <Text style={styles.formTitle}>Last 5 Results</Text>
-              {teamStatsLoading && (
-                <ActivityIndicator size="small" color="#2563EB" style={{ marginTop: 8 }} />
-              )}
-              {!teamStatsLoading && teamStats?.form.length === 0 && (
-                <Text style={styles.formEmpty}>No recent data available.</Text>
-              )}
-              {!teamStatsLoading && teamStats?.form.length > 0 && (
-                <View style={styles.formBadges}>
-                  {teamStats.form.map((result, i) => (
-                    <View key={i} style={[styles.formBadge, styles[`form${result}`]]}>
-                      <Text style={styles.formBadgeText}>{result}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          </View>
-        )}
-      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container:            { flex: 1, backgroundColor: '#fff' },
+  container:         { flex: 1 },
 
-  leagueBar:            { borderBottomWidth: 1, borderBottomColor: '#E5E7EB', flexGrow: 0 },
-  leagueBarContent:     { paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', gap: 8 },
-  leagueBtn:            { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: '#F3F4F6' },
-  leagueBtnActive:      { backgroundColor: '#2563EB' },
-  leagueBtnText:        { fontSize: 13, color: '#374151' },
-  leagueBtnTextActive:  { color: '#fff', fontWeight: '600' },
+  leagueBar:         { paddingVertical: 16 },
+  leagueBarContent:  { paddingHorizontal: 20, gap: 12 },
+  leagueBtn:         { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+  leagueBtnText:     { fontSize: 14, fontWeight: '600' },
 
-  header:               { backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  headerText:           { fontWeight: '700', color: '#374151' },
-  row:                  { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  rowAlt:               { backgroundColor: '#FAFAFA' },
-  cell:                 { width: 32, textAlign: 'center', fontSize: 13, color: '#111827' },
-  pos:                  { width: 28 },
-  team:                 { flex: 1, textAlign: 'left', paddingLeft: 8 },
-  pts:                  { color: '#2563EB', fontWeight: '700' },
-  empty:                { textAlign: 'center', marginTop: 40, color: '#9CA3AF', fontSize: 14 },
+  content:           { flex: 1, paddingHorizontal: 20 },
+  tableCard:         { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
+  cardHeader:        { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTitle:         { fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  cardSubtitle:      { fontSize: 10 },
 
-  modal:                { flex: 1, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 24 },
-  closeBtn:             { alignSelf: 'flex-start', marginBottom: 28 },
-  closeBtnText:         { color: '#2563EB', fontSize: 16, fontWeight: '600' },
-  modalTitle:           { fontSize: 28, fontWeight: '800', color: '#111827', marginBottom: 4 },
-  modalLeague:          { fontSize: 14, color: '#6B7280', marginBottom: 32 },
-  statGrid:             { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  statCard:             { width: '30%', backgroundColor: '#F3F4F6', borderRadius: 12, padding: 16, alignItems: 'center' },
-  statValue:            { fontSize: 24, fontWeight: '700', color: '#111827' },
-  statLabel:            { fontSize: 11, color: '#6B7280', marginTop: 4, textAlign: 'center' },
-
-  formSection:          { marginTop: 28 },
-  formTitle:            { fontSize: 14, fontWeight: '700', color: '#374151', marginBottom: 10 },
-  formEmpty:            { fontSize: 13, color: '#9CA3AF', marginTop: 4 },
-  formBadges:           { flexDirection: 'row', gap: 8 },
-  formBadge:            { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  formBadgeText:        { fontSize: 14, fontWeight: '700', color: '#fff' },
-  formW:                { backgroundColor: '#16A34A' },
-  formD:                { backgroundColor: '#CA8A04' },
-  formL:                { backgroundColor: '#DC2626' },
+  header:            { borderBottomWidth: 1 },
+  headerText:        { fontWeight: '700', fontSize: 11, letterSpacing: 0.5 },
+  row:               { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 14, position: 'relative' },
+  statusIndicator:   { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, borderTopRightRadius: 2, borderBottomRightRadius: 2 },
+  cell:              { width: 32, textAlign: 'center', fontSize: 13 },
+  pos:               { width: 24, textAlign: 'left', fontWeight: '600' },
+  teamCell:          { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 4 },
+  logoWrapper:       { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  teamLogo:          { width: 16, height: 16 },
+  fallbackLogo:      { fontSize: 12 },
+  teamName:          { fontSize: 14, fontWeight: '700', flex: 1 },
+  pts:               { fontWeight: '800', fontSize: 15, width: 40 },
+  empty:             { textAlign: 'center', paddingVertical: 40, fontSize: 14 },
 });
