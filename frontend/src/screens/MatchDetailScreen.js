@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, Image, ScrollView, StyleSheet, ActivityIndicator,
+  View, Text, Image, ScrollView, StyleSheet, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import api from '../services/api';
-
-// ── helpers ───────────────────────────────────────────────────────────────────
 
 function formatDateTime(dateStr) {
   if (!dateStr) return '';
@@ -29,8 +27,6 @@ function getResultFromFixture(fixture, teamId) {
   return teamWon ? 'W' : 'L';
 }
 
-// ── small components ──────────────────────────────────────────────────────────
-
 function SectionTitle({ label, colors }) {
   return <Text style={[s.sectionTitle, { color: colors.mutedForeground }]}>{label}</Text>;
 }
@@ -43,7 +39,7 @@ function FormBadge({ result, colors }) {
   const bg =
     result === 'W' ? colors.chartGreen :
     result === 'D' ? colors.mutedForeground :
-    '#EF4444';
+    colors.destructive;
   return (
     <View style={[s.formBadge, { backgroundColor: bg }]}>
       <Text style={s.formBadgeText}>{result}</Text>
@@ -51,7 +47,26 @@ function FormBadge({ result, colors }) {
   );
 }
 
-// ── MatchDetailScreen ─────────────────────────────────────────────────────────
+function StatBar({ label, home, away, colors, isDark }) {
+  const h = home ?? 0;
+  const a = away ?? 0;
+  const total = h + a || 1;
+  const hPct = (h / total) * 100;
+  return (
+    <View style={s.statBarWrap}>
+      <View style={s.statBarLabels}>
+        <Text style={[s.statBarVal, { color: colors.foreground, fontWeight: h > a ? '800' : '500' }]}>{h}</Text>
+        <Text style={[s.statBarLabel, { color: colors.mutedForeground }]}>{label}</Text>
+        <Text style={[s.statBarVal, { color: colors.foreground, fontWeight: a > h ? '800' : '500' }]}>{a}</Text>
+      </View>
+      <View style={s.statBarTrack}>
+        <View style={[s.statBarFill, { width: `${hPct}%`, backgroundColor: colors.accent }]} />
+        <View style={{ width: 3 }} />
+        <View style={[s.statBarFill, { width: `${100 - hPct}%`, backgroundColor: isDark ? '#9CA3AF' : '#6B7280' }]} />
+      </View>
+    </View>
+  );
+}
 
 export default function MatchDetailScreen({ route }) {
   const { match, leagueCode } = route.params;
@@ -65,43 +80,49 @@ export default function MatchDetailScreen({ route }) {
   const [h2h,       setH2h]       = useState([]);
   const [homeForm,  setHomeForm]  = useState([]);
   const [awayForm,  setAwayForm]  = useState([]);
-  const [lineups,   setLineups]   = useState(null); // null = loading, [] = no data
+  const [lineups,   setLineups]   = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [loading, setLoading] = useState({
-    standings: true,
-    h2h:       true,
-    form:      true,
-    lineups:   true,
+    standings: true, h2h: true, form: true, lineups: true,
   });
 
-  useEffect(() => {
-    // standings
+  const fetchAll = useCallback(() => {
+    setLoading({ standings: true, h2h: true, form: true, lineups: true });
+
     api.get(`/api/standings/${leagueCode}`)
       .then(r => setStandings(r.data?.stage?.[0]?.standings ?? []))
       .catch(() => setStandings([]))
       .finally(() => setLoading(p => ({ ...p, standings: false })));
 
-    // H2H
     api.get(`/api/h2h/${homeId}/${awayId}`)
       .then(r => setH2h(Array.isArray(r.data) ? r.data : []))
       .catch(() => setH2h([]))
       .finally(() => setLoading(p => ({ ...p, h2h: false })));
 
-    // recent form — both teams in parallel
     Promise.all([
       api.get(`/api/teams/${homeId}/last-fixtures`).then(r => setHomeForm(Array.isArray(r.data) ? r.data : [])).catch(() => setHomeForm([])),
       api.get(`/api/teams/${awayId}/last-fixtures`).then(r => setAwayForm(Array.isArray(r.data) ? r.data : [])).catch(() => setAwayForm([])),
     ]).finally(() => setLoading(p => ({ ...p, form: false })));
 
-    // lineups
     api.get(`/api/fixtures/${fixtureId}/lineups`)
       .then(r => setLineups(Array.isArray(r.data) ? r.data : []))
       .catch(() => setLineups([]))
       .finally(() => setLoading(p => ({ ...p, lineups: false })));
-  }, []);
+  }, [leagueCode, homeId, awayId, fixtureId]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    fetchAll();
+    setTimeout(() => setRefreshing(false), 1500);
+  }, [fetchAll]);
 
   const isFinished = (match.status ?? '').toLowerCase() === 'finished';
   const isLive     = (match.status ?? '').toLowerCase() === 'live';
+  const stats      = match.stats;
+  const hasStats   = stats && Object.keys(stats).length > 0;
 
   const homeFormBadges = homeForm.slice(0, 5).map(f => getResultFromFixture(f, homeId)).filter(Boolean);
   const awayFormBadges = awayForm.slice(0, 5).map(f => getResultFromFixture(f, awayId)).filter(Boolean);
@@ -110,12 +131,13 @@ export default function MatchDetailScreen({ route }) {
   const awayLineup = lineups?.find(l => l.team_id === awayId) ?? null;
 
   return (
-    <ScrollView style={[s.container, { backgroundColor: colors.background }]}>
-
-      {/* ── Match Header ── */}
+    <ScrollView
+      style={[s.container, { backgroundColor: colors.background }]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+    >
+      {/* Match Header */}
       <View style={[s.headerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={s.teamsRow}>
-          {/* Home */}
           <View style={s.teamCol}>
             <View style={[s.teamLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
               {match.teams?.home?.logo
@@ -127,7 +149,6 @@ export default function MatchDetailScreen({ route }) {
             </Text>
           </View>
 
-          {/* Score or VS */}
           <View style={s.middleCol}>
             {isFinished || isLive ? (
               <Text style={[s.scoreText, { color: isLive ? colors.accent : colors.foreground }]}>
@@ -137,13 +158,12 @@ export default function MatchDetailScreen({ route }) {
               <Text style={[s.vsText, { color: colors.mutedForeground }]}>VS</Text>
             )}
             {isLive && (
-              <Text style={s.liveLabel}>
+              <Text style={[s.liveLabel, { color: colors.destructive }]}>
                 LIVE {match.minute ? `${match.minute}'` : ''}
               </Text>
             )}
           </View>
 
-          {/* Away */}
           <View style={[s.teamCol, s.teamColRight]}>
             <View style={[s.teamLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
               {match.teams?.away?.logo
@@ -156,7 +176,6 @@ export default function MatchDetailScreen({ route }) {
           </View>
         </View>
 
-        {/* Venue + datetime */}
         {match.venue?.name ? (
           <Text style={[s.venue, { color: colors.mutedForeground }]}>
             {match.venue.name}{match.venue.city ? `, ${match.venue.city}` : ''}
@@ -169,7 +188,31 @@ export default function MatchDetailScreen({ route }) {
         ) : null}
       </View>
 
-      {/* ── League Table ── */}
+      {/* Match Stats */}
+      {hasStats && (
+        <View style={s.section}>
+          <SectionTitle label="MATCH STATS" colors={colors} />
+          <View style={[s.statsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {stats.possession_home != null && (
+              <StatBar label="POSSESSION" home={stats.possession_home} away={stats.possession_away} colors={colors} isDark={isDark} />
+            )}
+            {stats.shots_home != null && (
+              <StatBar label="SHOTS ON TARGET" home={stats.shots_home} away={stats.shots_away} colors={colors} isDark={isDark} />
+            )}
+            {stats.corners_home != null && (
+              <StatBar label="CORNERS" home={stats.corners_home} away={stats.corners_away} colors={colors} isDark={isDark} />
+            )}
+            {stats.passes_home != null && (
+              <StatBar label="PASSES" home={stats.passes_home} away={stats.passes_away} colors={colors} isDark={isDark} />
+            )}
+            {stats.fouls_home != null && (
+              <StatBar label="FOULS" home={stats.fouls_home} away={stats.fouls_away} colors={colors} isDark={isDark} />
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* League Table */}
       <View style={s.section}>
         <SectionTitle label="LEAGUE TABLE" colors={colors} />
         {loading.standings ? <InlineSpinner colors={colors} /> : (
@@ -217,7 +260,7 @@ export default function MatchDetailScreen({ route }) {
         )}
       </View>
 
-      {/* ── Head to Head ── */}
+      {/* Head to Head */}
       <View style={s.section}>
         <SectionTitle label="HEAD TO HEAD" colors={colors} />
         {loading.h2h ? <InlineSpinner colors={colors} /> : h2h.length === 0 ? (
@@ -259,7 +302,7 @@ export default function MatchDetailScreen({ route }) {
         )}
       </View>
 
-      {/* ── Recent Form ── */}
+      {/* Recent Form */}
       <View style={s.section}>
         <SectionTitle label="RECENT FORM" colors={colors} />
         {loading.form ? <InlineSpinner colors={colors} /> : (
@@ -289,7 +332,7 @@ export default function MatchDetailScreen({ route }) {
         )}
       </View>
 
-      {/* ── Lineups ── */}
+      {/* Lineups */}
       <View style={s.section}>
         <SectionTitle label="LINEUPS" colors={colors} />
         {loading.lineups ? <InlineSpinner colors={colors} /> : (!homeLineup && !awayLineup) ? (
@@ -297,7 +340,6 @@ export default function MatchDetailScreen({ route }) {
         ) : (
           <View style={[s.lineupsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={s.lineupsRow}>
-              {/* Home XI */}
               <View style={s.lineupCol}>
                 <Text style={[s.lineupTeam, { color: colors.foreground }]} numberOfLines={1}>
                   {homeLineup?.team_name ?? match.teams?.home?.name}
@@ -312,7 +354,6 @@ export default function MatchDetailScreen({ route }) {
 
               <View style={[s.lineupDivider, { backgroundColor: colors.border }]} />
 
-              {/* Away XI */}
               <View style={[s.lineupCol, { alignItems: 'flex-end' }]}>
                 <Text style={[s.lineupTeam, { color: colors.foreground, textAlign: 'right' }]} numberOfLines={1}>
                   {awayLineup?.team_name ?? match.teams?.away?.name}
@@ -334,15 +375,12 @@ export default function MatchDetailScreen({ route }) {
   );
 }
 
-// ── styles ────────────────────────────────────────────────────────────────────
-
 const s = StyleSheet.create({
   container:    { flex: 1 },
   section:      { paddingHorizontal: 20, marginBottom: 24 },
   sectionTitle: { fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 12 },
   empty:        { fontSize: 13, fontWeight: '600', paddingVertical: 8 },
 
-  // header card
   headerCard:   { margin: 20, borderRadius: 24, borderWidth: 1, padding: 20 },
   teamsRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   teamCol:      { flex: 1, alignItems: 'center', gap: 10 },
@@ -354,11 +392,19 @@ const s = StyleSheet.create({
   middleCol:    { alignItems: 'center', paddingHorizontal: 8 },
   scoreText:    { fontSize: 28, fontWeight: '900' },
   vsText:       { fontSize: 18, fontWeight: '800' },
-  liveLabel:    { fontSize: 10, fontWeight: '800', color: '#EF4444', marginTop: 4 },
+  liveLabel:    { fontSize: 10, fontWeight: '800', marginTop: 4 },
   venue:        { fontSize: 12, fontWeight: '600', textAlign: 'center', marginBottom: 4 },
   kickoff:      { fontSize: 12, fontWeight: '600', textAlign: 'center' },
 
-  // standings table
+  // match stats
+  statsCard:    { borderRadius: 20, borderWidth: 1, padding: 16, gap: 16 },
+  statBarWrap:  { gap: 6 },
+  statBarLabels:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  statBarVal:   { fontSize: 13, minWidth: 30 },
+  statBarLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  statBarTrack: { height: 6, borderRadius: 3, flexDirection: 'row', overflow: 'hidden' },
+  statBarFill:  { height: '100%', borderRadius: 3 },
+
   tableCard:    { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
   tableRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 },
   tablePos:     { width: 22, fontSize: 12, fontWeight: '700' },
@@ -368,13 +414,11 @@ const s = StyleSheet.create({
   tableCell:    { width: 28, textAlign: 'center', fontSize: 12 },
   tablePts:     { width: 36, textAlign: 'right', fontSize: 13, fontWeight: '800' },
 
-  // H2H
   h2hRow:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, gap: 8 },
   h2hDate:      { width: 52, fontSize: 10, fontWeight: '600' },
   h2hTeam:      { flex: 1, fontSize: 12 },
   h2hScore:     { fontSize: 14, fontWeight: '800', minWidth: 48, textAlign: 'center' },
 
-  // form
   formCard:     { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
   formRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, gap: 12 },
   formTeamLabel:{ flex: 1, fontSize: 13, fontWeight: '700' },
@@ -384,7 +428,6 @@ const s = StyleSheet.create({
   formNone:     { fontSize: 12, fontWeight: '600' },
   formDivider:  { height: 1, marginHorizontal: 16 },
 
-  // lineups
   lineupsCard:  { borderRadius: 20, borderWidth: 1, padding: 16 },
   lineupsRow:   { flexDirection: 'row', gap: 12 },
   lineupCol:    { flex: 1, gap: 6 },

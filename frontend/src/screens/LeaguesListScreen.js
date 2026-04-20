@@ -6,17 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import api from '../services/api';
-
-const LEAGUES = [
-  { code: 'PL',  label: 'Premier League',   logo: 'https://media.api-sports.io/football/leagues/39.png' },
-  { code: 'PD',  label: 'La Liga',          logo: 'https://media.api-sports.io/football/leagues/140.png' },
-  { code: 'BL1', label: 'Bundesliga',       logo: 'https://media.api-sports.io/football/leagues/78.png' },
-  { code: 'SA',  label: 'Serie A',          logo: 'https://media.api-sports.io/football/leagues/135.png' },
-  { code: 'FL1', label: 'Ligue 1',          logo: 'https://media.api-sports.io/football/leagues/61.png' },
-  { code: 'CL',  label: 'Champions League', logo: 'https://media.api-sports.io/football/leagues/2.png' },
-];
-
-export { LEAGUES };
+import { LEAGUES } from '../constants/leagues';
 
 export default function LeaguesListScreen({ onSelect }) {
   const { colors, isDark } = useTheme();

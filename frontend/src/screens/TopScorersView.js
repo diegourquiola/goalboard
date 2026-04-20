@@ -1,0 +1,138 @@
+import React, { useState, useCallback, useEffect } from 'react';
+import {
+  View, Text, FlatList, Image, StyleSheet, RefreshControl, ActivityIndicator,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import api from '../services/api';
+import ErrorState from '../components/ErrorState';
+import { useTheme } from '../theme/ThemeContext';
+
+export default function TopScorersView({ leagueCode }) {
+  const { colors, isDark } = useTheme();
+  const [scorers, setScorers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchScorers = useCallback(async () => {
+    setError(null);
+    try {
+      const { data } = await api.get(`/api/top-scorers/${leagueCode}`);
+      setScorers(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setError(e.response?.data?.detail ?? 'Failed to load top scorers.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [leagueCode]);
+
+  useEffect(() => { fetchScorers(); }, [leagueCode]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchScorers();
+  }, [fetchScorers]);
+
+  if (loading) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
+
+  if (error) return <ErrorState message={error} onRetry={fetchScorers} />;
+
+  const renderItem = ({ item, index }) => (
+    <View
+      style={[
+        styles.row,
+        {
+          backgroundColor: index % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
+          borderBottomColor: colors.border,
+        },
+      ]}
+    >
+      <Text style={[styles.rank, { color: index < 3 ? colors.accent : colors.mutedForeground }]}>
+        {index + 1}
+      </Text>
+      <View style={[styles.photoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+        {item.photo
+          ? <Image source={{ uri: item.photo }} style={styles.photo} />
+          : <Ionicons name="person" size={16} color={colors.mutedForeground} />}
+      </View>
+      <View style={styles.info}>
+        <Text style={[styles.playerName, { color: colors.foreground }]} numberOfLines={1}>
+          {item.name}
+        </Text>
+        <View style={styles.teamRow}>
+          {item.team_logo && <Image source={{ uri: item.team_logo }} style={styles.teamLogo} />}
+          <Text style={[styles.teamName, { color: colors.mutedForeground }]} numberOfLines={1}>
+            {item.team_name}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.statsCol}>
+        <Text style={[styles.goals, { color: colors.foreground }]}>{item.goals}</Text>
+        <Text style={[styles.statsLabel, { color: colors.mutedForeground }]}>goals</Text>
+      </View>
+      <View style={styles.statsCol}>
+        <Text style={[styles.assists, { color: colors.mutedForeground }]}>{item.assists}</Text>
+        <Text style={[styles.statsLabel, { color: colors.mutedForeground }]}>ast</Text>
+      </View>
+    </View>
+  );
+
+  return (
+    <FlatList
+      data={scorers}
+      keyExtractor={(item, i) => item.id?.toString() ?? `${i}`}
+      renderItem={renderItem}
+      style={{ backgroundColor: colors.background }}
+      contentContainerStyle={styles.list}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+      ListHeaderComponent={
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerRank, { color: colors.mutedForeground }]}>#</Text>
+          <Text style={[styles.headerPlayer, { color: colors.mutedForeground }]}>PLAYER</Text>
+          <Text style={[styles.headerStat, { color: colors.mutedForeground }]}>G</Text>
+          <Text style={[styles.headerStat, { color: colors.mutedForeground }]}>A</Text>
+        </View>
+      }
+      ListEmptyComponent={
+        <View style={styles.emptyWrap}>
+          <Ionicons name="football-outline" size={40} color={colors.mutedForeground} />
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No top scorers data available.</Text>
+        </View>
+      }
+    />
+  );
+}
+
+const styles = StyleSheet.create({
+  center:      { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  list:        { paddingBottom: 40 },
+
+  header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 },
+  headerRank:  { width: 28, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  headerPlayer:{ flex: 1, fontSize: 11, fontWeight: '700', letterSpacing: 0.5, paddingLeft: 40 },
+  headerStat:  { width: 40, textAlign: 'center', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+
+  row:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
+  rank:        { width: 28, fontSize: 14, fontWeight: '800' },
+  photoWrap:   { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  photo:       { width: 32, height: 32, borderRadius: 16 },
+  info:        { flex: 1, paddingLeft: 10, gap: 2 },
+  playerName:  { fontSize: 14, fontWeight: '700' },
+  teamRow:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  teamLogo:    { width: 12, height: 12 },
+  teamName:    { fontSize: 11, fontWeight: '500' },
+  statsCol:    { width: 40, alignItems: 'center' },
+  goals:       { fontSize: 16, fontWeight: '900' },
+  assists:     { fontSize: 14, fontWeight: '600' },
+  statsLabel:  { fontSize: 9, fontWeight: '600' },
+
+  emptyWrap:   { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 12 },
+  emptyText:   { fontSize: 14, fontWeight: '600' },
+});

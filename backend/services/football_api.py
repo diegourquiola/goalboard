@@ -253,6 +253,34 @@ def get_fixture_lineups(fixture_id: int) -> list:
     return result
 
 
+def get_top_scorers(league_code: str) -> list:
+    league_id = _get_league_id(league_code)
+    raw = _get(
+        "/players/topscorers",
+        params={"league": league_id, "season": CURRENT_SEASON},
+        ttl=300,
+    )
+    result = []
+    for item in raw.get("response", []):
+        player = item.get("player", {})
+        stats_list = item.get("statistics", [])
+        stat = stats_list[0] if stats_list else {}
+        team = stat.get("team", {})
+        goals_info = stat.get("goals", {})
+        result.append({
+            "id": player.get("id"),
+            "name": player.get("name"),
+            "photo": player.get("photo"),
+            "nationality": player.get("nationality"),
+            "team_name": team.get("name"),
+            "team_logo": team.get("logo"),
+            "goals": goals_info.get("total") or 0,
+            "assists": goals_info.get("assists") or 0,
+            "appearances": stat.get("games", {}).get("appearences") or 0,
+        })
+    return result
+
+
 def get_team_next_fixture(team_id: int) -> dict | None:
     raw = _get("/fixtures", params={"team": team_id, "next": 1}, ttl=300)
     fixtures = raw.get("response", [])

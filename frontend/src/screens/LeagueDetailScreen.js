@@ -6,11 +6,11 @@ import {
 import api from '../services/api';
 import ErrorState from '../components/ErrorState';
 import AllMatchesView from './AllMatchesView';
+import TopScorersView from './TopScorersView';
 import { useTheme } from '../theme/ThemeContext';
+import { LEAGUE_ZONES } from '../constants/leagues';
 
-const TABS = ['Standings', 'Matches'];
-
-// ─── Standings embedded view ────────────────────────────────────────────────
+const TABS = ['Standings', 'Matches', 'Top Scorers'];
 
 function StandingsView({ leagueCode }) {
   const { colors, isDark } = useTheme();
@@ -19,7 +19,7 @@ function StandingsView({ leagueCode }) {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetch = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setError(null);
     try {
       const { data } = await api.get(`/api/standings/${leagueCode}`);
@@ -32,18 +32,20 @@ function StandingsView({ leagueCode }) {
     }
   }, [leagueCode]);
 
-  useEffect(() => { fetch(); }, [leagueCode]);
+  useEffect(() => { fetchData(); }, [leagueCode]);
 
-  const onRefresh = useCallback(async () => { setRefreshing(true); await fetch(); }, [fetch]);
+  const onRefresh = useCallback(async () => { setRefreshing(true); await fetchData(); }, [fetchData]);
+
+  const zones = LEAGUE_ZONES[leagueCode] ?? { clSpots: 4, relegationStart: 18 };
 
   const getIndicator = (pos) => {
-    if (pos <= 4) return colors.accent;
-    if (pos >= 18) return '#EF4444';
+    if (zones.clSpots > 0 && pos <= zones.clSpots) return colors.accent;
+    if (zones.relegationStart && pos >= zones.relegationStart) return colors.destructive;
     return null;
   };
 
   if (loading) return <View style={[s.center, { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={colors.accent} /></View>;
-  if (error)   return <ErrorState message={error} onRetry={fetch} />;
+  if (error)   return <ErrorState message={error} onRetry={fetchData} />;
 
   return (
     <ScrollView
@@ -51,7 +53,6 @@ function StandingsView({ leagueCode }) {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
     >
       <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border, marginHorizontal: 16, marginTop: 16 }]}>
-        {/* Header row */}
         <View style={[s.row, s.headerRow, { borderBottomColor: colors.border }]}>
           <Text style={[s.cell, s.pos, s.headerText, { color: colors.mutedForeground }]}>#</Text>
           <View style={s.teamCell}><Text style={[s.headerText, { color: colors.mutedForeground }]}>CLUB</Text></View>
@@ -102,15 +103,12 @@ function StandingsView({ leagueCode }) {
   );
 }
 
-// ─── LeagueDetailScreen ──────────────────────────────────────────────────────
-
 export default function LeagueDetailScreen({ league }) {
   const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState('Matches');
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Custom top tab bar */}
       <View style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {TABS.map(tab => {
           const active = activeTab === tab;
@@ -128,11 +126,9 @@ export default function LeagueDetailScreen({ league }) {
         })}
       </View>
 
-      {/* Content */}
-      {activeTab === 'Standings'
-        ? <StandingsView leagueCode={league.code} />
-        : <AllMatchesView leagueCode={league.code} />
-      }
+      {activeTab === 'Standings' && <StandingsView leagueCode={league.code} />}
+      {activeTab === 'Matches' && <AllMatchesView leagueCode={league.code} />}
+      {activeTab === 'Top Scorers' && <TopScorersView leagueCode={league.code} />}
     </View>
   );
 }
@@ -144,7 +140,6 @@ const styles = StyleSheet.create({
   tabText:   { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
 });
 
-// Shared styles for StandingsView
 const s = StyleSheet.create({
   center:     { flex: 1, alignItems: 'center', justifyContent: 'center' },
   tableCard:  { borderRadius: 20, borderWidth: 1, overflow: 'hidden', marginBottom: 16 },

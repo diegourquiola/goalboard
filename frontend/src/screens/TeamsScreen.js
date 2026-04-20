@@ -4,18 +4,12 @@ import {
   StyleSheet, Modal, FlatList, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import api from '../services/api';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import { useTheme } from '../theme/ThemeContext';
-
-const LEAGUES = [
-  { code: 'PL',  label: 'Premier League' },
-  { code: 'PD',  label: 'La Liga' },
-  { code: 'BL1', label: 'Bundesliga' },
-  { code: 'SA',  label: 'Serie A' },
-  { code: 'FL1', label: 'Ligue 1' },
-];
+import { LEAGUES } from '../constants/leagues';
 
 const CATEGORIES = ['Form', 'Goals Scored', 'Goals Conceded'];
 
@@ -137,6 +131,7 @@ function computeTeamStats(team) {
 
 export default function TeamsScreen() {
   const { colors, isDark } = useTheme();
+  const navigation = useNavigation();
   const [league, setLeague]             = useState('PL');
   const [activeCat, setActiveCat]       = useState('Goals Scored');
   const [standings, setStandings]       = useState([]);
@@ -271,7 +266,14 @@ export default function TeamsScreen() {
       {loading && <LoadingState />}
       {!loading && error && <ErrorState message={error} onRetry={() => fetchStandings(league)} />}
 
-      {!loading && !error && (
+      {!loading && !error && standings.length === 0 && (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
+          <Ionicons name="people-outline" size={40} color={colors.mutedForeground} />
+          <Text style={{ color: colors.mutedForeground, fontSize: 14, fontWeight: '600', marginTop: 12 }}>No teams data available.</Text>
+        </View>
+      )}
+
+      {!loading && !error && standings.length > 0 && (
         <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
 
           {/* Team Selector Card */}
@@ -295,6 +297,19 @@ export default function TeamsScreen() {
               </View>
               <Ionicons name="chevron-down" size={20} color={colors.mutedForeground} />
             </TouchableOpacity>
+            {selectedTeam && (
+              <TouchableOpacity
+                style={[styles.detailsBtn, { borderColor: colors.accent }]}
+                onPress={() => navigation.navigate('TeamDetail', {
+                  team: selectedTeam,
+                  leagueCode: league,
+                  leagueLabel: LEAGUES.find(l => l.code === league)?.label,
+                })}
+              >
+                <Text style={[styles.detailsBtnText, { color: colors.accent }]}>View Full Profile</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.accent} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Next Game Card */}
@@ -444,6 +459,8 @@ const styles = StyleSheet.create({
   sectionBadge:       { fontSize: 9, fontWeight: '700', letterSpacing: 0.5, borderWidth: 1, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   noNext:             { fontSize: 13, fontWeight: '600' },
   selectorCard:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 20, borderWidth: 1 },
+  detailsBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 10, borderRadius: 12, borderWidth: 1, marginTop: 10 },
+  detailsBtnText:     { fontSize: 13, fontWeight: '700' },
   selectorInfo:       { flexDirection: 'row', alignItems: 'center', gap: 12 },
   logoWrapper:        { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   teamLogo:           { width: 22, height: 22 },

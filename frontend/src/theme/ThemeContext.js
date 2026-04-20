@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const THEME_KEY = '@goalboard_theme';
 
 const LIGHT = {
   background: '#F6F8FA',
@@ -36,8 +39,25 @@ const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
   const [isDark, setIsDark] = useState(true);
+  const [ready, setReady] = useState(false);
   const colors = isDark ? DARK : LIGHT;
-  const toggle = () => setIsDark(prev => !prev);
+
+  useEffect(() => {
+    AsyncStorage.getItem(THEME_KEY)
+      .then(val => { if (val === 'light') setIsDark(false); })
+      .catch(() => {})
+      .finally(() => setReady(true));
+  }, []);
+
+  const toggle = () => {
+    setIsDark(prev => {
+      const next = !prev;
+      AsyncStorage.setItem(THEME_KEY, next ? 'dark' : 'light').catch(() => {});
+      return next;
+    });
+  };
+
+  if (!ready) return null;
 
   return (
     <ThemeContext.Provider value={{ isDark, colors, toggle }}>

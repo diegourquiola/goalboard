@@ -7,15 +7,7 @@ import api from '../services/api';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import { useTheme } from '../theme/ThemeContext';
-
-const LEAGUES = [
-  { code: 'PL',  label: 'Premier League' },
-  { code: 'PD',  label: 'La Liga' },
-  { code: 'BL1', label: 'Bundesliga' },
-  { code: 'SA',  label: 'Serie A' },
-  { code: 'FL1', label: 'Ligue 1' },
-  { code: 'CL',  label: 'Champions League' },
-];
+import { LEAGUES } from '../constants/leagues';
 
 const FILTERS = [
   { key: 'all',     label: 'All' },

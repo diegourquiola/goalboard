@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, FlatList, Image, TouchableOpacity,
-  StyleSheet, RefreshControl, ActivityIndicator,
+  StyleSheet, RefreshControl, ActivityIndicator, Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import api from '../services/api';
@@ -11,14 +11,23 @@ import { useTheme } from '../theme/ThemeContext';
 const HEADER_H = 38;
 const MATCH_H  = 60;
 
+function toLocalYMD(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function formatDateLabel(dateStr) {
   if (!dateStr) return '';
-  const todayKey    = new Date().toISOString().split('T')[0];
-  const tomorrowKey = (() => { const t = new Date(); t.setDate(t.getDate() + 1); return t.toISOString().split('T')[0]; })();
+  const now = new Date();
+  const todayKey = toLocalYMD(now);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowKey = toLocalYMD(tomorrow);
   const dayKey = dateStr.split('T')[0];
   if (dayKey === todayKey)    return 'TODAY';
   if (dayKey === tomorrowKey) return 'TOMORROW';
-  // Parse YYYY-MM-DD parts manually to avoid UTC-midnight shift in western timezones
   const [y, m, day] = dayKey.split('-').map(Number);
   const local = new Date(y, m - 1, day);
   if (isNaN(local)) return dateStr;
@@ -30,6 +39,21 @@ function formatKickoff(dateStr) {
   const d = new Date(dateStr);
   if (isNaN(d)) return '';
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false });
+}
+
+function PulsingDot() {
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+  return <Animated.View style={[styles.liveDot, { opacity }]} />;
 }
 
 export default function AllMatchesView({ leagueCode }) {
@@ -63,9 +87,8 @@ export default function AllMatchesView({ leagueCode }) {
     await fetchMatches();
   }, [fetchMatches]);
 
-  // Build flat list items and pre-compute offsets for getItemLayout
   const { items, initialScrollIndex } = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = toLocalYMD(new Date());
     const groups = {};
     raw.forEach(m => {
       const day = (m.date ?? m.match_date ?? '').split('T')[0];
@@ -80,11 +103,10 @@ export default function AllMatchesView({ leagueCode }) {
 
     Object.entries(groups).forEach(([day, matches]) => {
       const headerIdx = flat.length;
-      // Mark the header of the first day >= today that has a non-finished match
       if (!foundUpcoming && day >= todayStr) {
         const hasUnplayed = matches.some(m => {
-          const s = (m.status ?? '').toLowerCase();
-          return s !== 'finished' && s !== 'ft';
+          const st = (m.status ?? '').toLowerCase();
+          return st !== 'finished' && st !== 'ft';
         });
         if (hasUnplayed) {
           upcomingIdx = headerIdx;
@@ -137,15 +159,17 @@ export default function AllMatchesView({ leagueCode }) {
 
     return (
       <TouchableOpacity
-        style={[styles.matchRow, { borderBottomColor: colors.border, backgroundColor: colors.background }]}
+        style={[
+          styles.matchRow,
+          { borderBottomColor: colors.border, backgroundColor: isLive ? 'rgba(239,68,68,0.06)' : colors.background },
+        ]}
         activeOpacity={0.7}
         onPress={() => navigation.navigate('MatchDetail', { match: m, leagueCode })}
       >
-        {/* Status column */}
         <View style={styles.statusCol}>
           {isLive ? (
             <>
-              <View style={styles.liveDot} />
+              <PulsingDot />
               <Text style={styles.liveText}>{m.minute ? `${m.minute}'` : 'LIVE'}</Text>
             </>
           ) : isFinished ? (
@@ -157,10 +181,8 @@ export default function AllMatchesView({ leagueCode }) {
           )}
         </View>
 
-        {/* Divider */}
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-        {/* Teams + scores */}
         <View style={styles.teamsCol}>
           <View style={styles.teamLine}>
             <View style={[styles.logoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>

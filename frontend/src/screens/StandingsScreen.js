@@ -7,15 +7,7 @@ import api from '../services/api';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import { useTheme } from '../theme/ThemeContext';
-
-const LEAGUES = [
-  { code: 'PL',  label: 'Premier League', logo: 'https://media.api-sports.io/football/leagues/39.png' },
-  { code: 'PD',  label: 'La Liga',        logo: 'https://media.api-sports.io/football/leagues/140.png' },
-  { code: 'BL1', label: 'Bundesliga',     logo: 'https://media.api-sports.io/football/leagues/78.png' },
-  { code: 'SA',  label: 'Serie A',        logo: 'https://media.api-sports.io/football/leagues/135.png' },
-  { code: 'FL1', label: 'Ligue 1',        logo: 'https://media.api-sports.io/football/leagues/61.png' },
-  { code: 'CL',  label: 'Champions League', logo: 'https://media.api-sports.io/football/leagues/2.png' },
-];
+import { LEAGUES, LEAGUE_ZONES } from '../constants/leagues';
 
 export default function StandingsScreen() {
   const { colors, isDark } = useTheme();
@@ -49,9 +41,10 @@ export default function StandingsScreen() {
     setRefreshing(false);
   }, [league, fetchStandings]);
 
+  const zones = LEAGUE_ZONES[league] ?? { clSpots: 4, relegationStart: 18 };
   const getStatusIndicator = (position) => {
-    if (position <= 4) return colors.accent;
-    if (position >= 18) return '#EF4444';
+    if (zones.clSpots > 0 && position <= zones.clSpots) return colors.accent;
+    if (zones.relegationStart && position >= zones.relegationStart) return colors.destructive;
     return null;
   };
 

@@ -8,6 +8,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import LeaguesTab        from './src/screens/LeaguesTab';
 import TeamsScreen       from './src/screens/TeamsScreen';
 import MatchDetailScreen from './src/screens/MatchDetailScreen';
+import TeamDetailScreen  from './src/screens/TeamDetailScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 const Tab   = createBottomTabNavigator();
@@ -107,6 +108,17 @@ function AppContent() {
           options={{
             headerShown: true,
             title: 'Match',
+            headerStyle:      { backgroundColor: colors.background },
+            headerTintColor:  colors.foreground,
+            headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+          }}
+        />
+        <Stack.Screen
+          name="TeamDetail"
+          component={TeamDetailScreen}
+          options={{
+            headerShown: true,
+            title: 'Team',
             headerStyle:      { backgroundColor: colors.background },
             headerTintColor:  colors.foreground,
             headerTitleStyle: { fontWeight: '800', fontSize: 16 },
