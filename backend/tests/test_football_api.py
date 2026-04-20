@@ -151,3 +151,85 @@ def test_get_league_id_accepts_numeric_string():
 def test_get_league_id_accepts_code():
     from services.football_api import _get_league_id
     assert _get_league_id("PL") == 39
+
+
+# ── Task 2 tests ──────────────────────────────────────────────────────────────
+
+def test_search_leagues_returns_list():
+    from services.football_api import search_leagues
+    mock = {
+        "response": [
+            {
+                "league":  {"id": 39, "name": "Premier League", "logo": "https://logo.png"},
+                "country": {"name": "England", "flag": "https://flag.png"},
+            }
+        ]
+    }
+    with patch("services.football_api._get", return_value=mock):
+        result = search_leagues("premier")
+    assert len(result) == 1
+    assert result[0]["name"] == "Premier League"
+    assert result[0]["country"] == "England"
+
+
+def test_get_h2h_returns_parsed_fixtures():
+    from services.football_api import get_h2h
+    mock = {"response": [_make_fixture()]}
+    with patch("services.football_api._get", return_value=mock):
+        result = get_h2h(33, 40)
+    assert len(result) == 1
+    assert result[0]["score"]["home"] == 2
+    assert result[0]["venue"]["name"] == "Wembley"
+
+
+def test_get_team_last_fixtures_returns_list():
+    from services.football_api import get_team_last_fixtures
+    mock = {"response": [_make_fixture(), _make_fixture(fixture_id=2)]}
+    with patch("services.football_api._get", return_value=mock):
+        result = get_team_last_fixtures(33, last=5)
+    assert len(result) == 2
+
+
+def test_get_fixture_lineups_returns_by_team():
+    from services.football_api import get_fixture_lineups
+    mock = {
+        "response": [
+            {
+                "team": {"id": 33, "name": "Man United", "logo": ""},
+                "formation": "4-3-3",
+                "startXI": [
+                    {"player": {"name": "De Gea"}},
+                    {"player": {"name": "Shaw"}},
+                ],
+            },
+            {
+                "team": {"id": 40, "name": "Liverpool", "logo": ""},
+                "formation": "4-2-3-1",
+                "startXI": [
+                    {"player": {"name": "Alisson"}},
+                ],
+            },
+        ]
+    }
+    with patch("services.football_api._get", return_value=mock):
+        result = get_fixture_lineups(999)
+    assert len(result) == 2
+    assert result[0]["team_id"] == 33
+    assert result[0]["formation"] == "4-3-3"
+    assert "De Gea" in result[0]["players"]
+
+
+def test_get_team_next_fixture_returns_single():
+    from services.football_api import get_team_next_fixture
+    mock = {"response": [_make_fixture(status="NS")]}
+    with patch("services.football_api._get", return_value=mock):
+        result = get_team_next_fixture(33)
+    assert result is not None
+    assert result["status"] == "pre-match"
+
+
+def test_get_team_next_fixture_returns_none_when_empty():
+    from services.football_api import get_team_next_fixture
+    with patch("services.football_api._get", return_value={"response": []}):
+        result = get_team_next_fixture(33)
+    assert result is None

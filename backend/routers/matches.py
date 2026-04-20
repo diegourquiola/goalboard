@@ -14,8 +14,8 @@ def matches(
 ):
     """
     Get matches for a league with optional filters.
-    Note: matchday and status filters are applied client-side as 
-    Soccerdata API doesn't support them directly.
+    Note: matchday filter is applied client-side as
+    API-Football doesn't support it directly.
     """
     league = league.upper()
     try:

@@ -202,3 +202,60 @@ def get_team(team_id: int) -> dict:
 
 def get_leagues() -> dict:
     return _get("/leagues", params={"season": CURRENT_SEASON}, ttl=3600)
+
+
+def search_leagues(q: str) -> list:
+    raw = _get("/leagues", params={"search": q}, ttl=3600)
+    results = []
+    for item in raw.get("response", []):
+        league  = item.get("league", {})
+        country = item.get("country", {})
+        results.append({
+            "id":           league.get("id"),
+            "name":         league.get("name"),
+            "logo":         league.get("logo"),
+            "country":      country.get("name"),
+            "country_flag": country.get("flag"),
+        })
+    return results
+
+
+def get_h2h(team1_id: int, team2_id: int) -> list:
+    raw = _get(
+        "/fixtures/headtohead",
+        params={"h2h": f"{team1_id}-{team2_id}", "last": 5},
+        ttl=300,
+    )
+    return [_parse_fixture(f) for f in raw.get("response", [])]
+
+
+def get_team_last_fixtures(team_id: int, last: int = 5) -> list:
+    raw = _get("/fixtures", params={"team": team_id, "last": last}, ttl=120)
+    return [_parse_fixture(f) for f in raw.get("response", [])]
+
+
+def get_fixture_lineups(fixture_id: int) -> list:
+    raw = _get("/fixtures/lineups", params={"fixture": fixture_id}, ttl=600)
+    result = []
+    for team_data in raw.get("response", []):
+        team = team_data.get("team", {})
+        players = [
+            p.get("player", {}).get("name")
+            for p in team_data.get("startXI", [])
+        ]
+        result.append({
+            "team_id":   team.get("id"),
+            "team_name": team.get("name"),
+            "team_logo": team.get("logo"),
+            "formation": team_data.get("formation"),
+            "players":   players,
+        })
+    return result
+
+
+def get_team_next_fixture(team_id: int) -> dict | None:
+    raw = _get("/fixtures", params={"team": team_id, "next": 1}, ttl=300)
+    fixtures = raw.get("response", [])
+    if not fixtures:
+        return None
+    return _parse_fixture(fixtures[0])
