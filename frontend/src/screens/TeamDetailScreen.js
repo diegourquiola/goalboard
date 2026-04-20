@@ -28,30 +28,55 @@ function StatChip({ label, value, sub, colors }) {
   );
 }
 
+const POSITION_ORDER = { Goalkeeper: 0, Defender: 1, Midfielder: 2, Attacker: 3 };
+const POSITION_SHORT = { Goalkeeper: 'GK', Defender: 'DEF', Midfielder: 'MID', Attacker: 'FWD' };
+
 export default function TeamDetailScreen({ route, navigation }) {
-  const { team, leagueCode, leagueLabel } = route.params;
+  const { team: routeTeam, leagueCode, leagueLabel } = route.params;
   const { colors, isDark } = useTheme();
 
+  const teamId = routeTeam.team_id ?? routeTeam.id;
+  const hasStats = routeTeam.games_played != null;
+
+  const [team, setTeam] = useState(routeTeam);
   const [nextFixture, setNextFixture] = useState(null);
   const [lastFixtures, setLastFixtures] = useState([]);
+  const [squad, setSquad] = useState([]);
   const [loadingNext, setLoadingNext] = useState(true);
   const [loadingLast, setLoadingLast] = useState(true);
+  const [loadingSquad, setLoadingSquad] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(() => {
     setLoadingNext(true);
     setLoadingLast(true);
+    setLoadingSquad(true);
 
-    api.get(`/api/teams/${team.team_id}/next`)
+    if (!hasStats && leagueCode) {
+      api.get(`/api/standings/${leagueCode}`)
+        .then(r => {
+          const rows = r.data?.stage?.[0]?.standings ?? [];
+          const found = rows.find(row => row.team_id === teamId);
+          if (found) setTeam(prev => ({ ...prev, ...found }));
+        })
+        .catch(() => {});
+    }
+
+    api.get(`/api/teams/${teamId}/next`)
       .then(r => setNextFixture(Object.keys(r.data).length > 0 ? r.data : null))
       .catch(() => setNextFixture(null))
       .finally(() => setLoadingNext(false));
 
-    api.get(`/api/teams/${team.team_id}/last-fixtures`, { params: { last: 5 } })
+    api.get(`/api/teams/${teamId}/last-fixtures`, { params: { last: 5 } })
       .then(r => setLastFixtures(Array.isArray(r.data) ? r.data : []))
       .catch(() => setLastFixtures([]))
       .finally(() => setLoadingLast(false));
-  }, [team.team_id]);
+
+    api.get(`/api/squad/${teamId}`)
+      .then(r => setSquad(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setSquad([]))
+      .finally(() => setLoadingSquad(false));
+  }, [teamId, leagueCode, hasStats]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -71,13 +96,24 @@ export default function TeamDetailScreen({ route, navigation }) {
   const avgGoals = gp > 0 ? (gf / gp).toFixed(1) : '0.0';
   const winPct = gp > 0 ? Math.round((w / gp) * 100) : 0;
 
+  const groupedSquad = squad.reduce((acc, p) => {
+    const pos = p.position || 'Unknown';
+    if (!acc[pos]) acc[pos] = [];
+    acc[pos].push(p);
+    return acc;
+  }, {});
+
+  const sortedPositions = Object.keys(groupedSquad).sort(
+    (a, b) => (POSITION_ORDER[a] ?? 99) - (POSITION_ORDER[b] ?? 99)
+  );
+
   const getResult = (fixture) => {
     const homeId = fixture.teams?.home?.id;
     const hScore = fixture.score?.home;
     const aScore = fixture.score?.away;
     if (hScore == null || aScore == null) return null;
     if (hScore === aScore) return 'D';
-    const isHome = homeId === team.team_id;
+    const isHome = homeId === teamId;
     return (isHome ? hScore > aScore : aScore > hScore) ? 'W' : 'L';
   };
 
@@ -95,9 +131,11 @@ export default function TeamDetailScreen({ route, navigation }) {
         </View>
         <Text style={[styles.headerName, { color: colors.foreground }]}>{team.team_name}</Text>
         <View style={styles.headerMeta}>
-          <View style={[styles.positionBadge, { backgroundColor: colors.accent + '1A' }]}>
-            <Text style={[styles.positionText, { color: colors.accent }]}>#{team.position} in league</Text>
-          </View>
+          {team.position != null && (
+            <View style={[styles.positionBadge, { backgroundColor: colors.accent + '1A' }]}>
+              <Text style={[styles.positionText, { color: colors.accent }]}>#{team.position} in league</Text>
+            </View>
+          )}
           {leagueLabel && (
             <Text style={[styles.leagueName, { color: colors.mutedForeground }]}>{leagueLabel}</Text>
           )}
@@ -105,19 +143,21 @@ export default function TeamDetailScreen({ route, navigation }) {
       </View>
 
       {/* Season Stats */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>SEASON STATS</Text>
-        <View style={styles.statGrid}>
-          <StatChip label="Points" value={pts} sub={`${gp} games`} colors={colors} />
-          <StatChip label="Win %" value={`${winPct}%`} sub={`${w}W ${d}D ${l}L`} colors={colors} />
-          <StatChip label="Goals" value={gf} sub={`${avgGoals} avg`} colors={colors} />
+      {gp > 0 && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>SEASON STATS</Text>
+          <View style={styles.statGrid}>
+            <StatChip label="Points" value={pts} sub={`${gp} games`} colors={colors} />
+            <StatChip label="Win %" value={`${winPct}%`} sub={`${w}W ${d}D ${l}L`} colors={colors} />
+            <StatChip label="Goals" value={gf} sub={`${avgGoals} avg`} colors={colors} />
+          </View>
+          <View style={styles.statGrid}>
+            <StatChip label="Conceded" value={ga} sub={gp > 0 ? `${(ga / gp).toFixed(1)} avg` : '–'} colors={colors} />
+            <StatChip label="GD" value={team.goal_difference > 0 ? `+${team.goal_difference}` : `${team.goal_difference}`} colors={colors} />
+            <StatChip label="Played" value={gp} colors={colors} />
+          </View>
         </View>
-        <View style={styles.statGrid}>
-          <StatChip label="Conceded" value={ga} sub={gp > 0 ? `${(ga / gp).toFixed(1)} avg` : '–'} colors={colors} />
-          <StatChip label="GD" value={team.goal_difference > 0 ? `+${team.goal_difference}` : `${team.goal_difference}`} colors={colors} />
-          <StatChip label="Played" value={gp} colors={colors} />
-        </View>
-      </View>
+      )}
 
       {/* Next Fixture */}
       <View style={styles.section}>
@@ -125,7 +165,11 @@ export default function TeamDetailScreen({ route, navigation }) {
         {loadingNext ? (
           <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 12 }} />
         ) : nextFixture ? (
-          <View style={[styles.fixtureCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('MatchDetail', { match: nextFixture, leagueCode })}
+            style={[styles.fixtureCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
             <View style={styles.fixtureRow}>
               <View style={styles.fixtureTeam}>
                 <View style={[styles.fixtureLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
@@ -145,13 +189,18 @@ export default function TeamDetailScreen({ route, navigation }) {
                 </View>
               </View>
             </View>
-            <Text style={[styles.fixtureDate, { color: colors.mutedForeground }]}>
-              {formatFixtureDate(nextFixture.date)}
-            </Text>
-            {nextFixture.venue?.name && (
-              <Text style={[styles.fixtureVenue, { color: colors.mutedForeground }]}>{nextFixture.venue.name}</Text>
-            )}
-          </View>
+            <View style={styles.fixtureFooter}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fixtureDate, { color: colors.mutedForeground }]}>
+                  {formatFixtureDate(nextFixture.date)}
+                </Text>
+                {nextFixture.venue?.name && (
+                  <Text style={[styles.fixtureVenue, { color: colors.mutedForeground }]}>{nextFixture.venue.name}</Text>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />
+            </View>
+          </TouchableOpacity>
         ) : (
           <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No upcoming fixtures.</Text>
         )}
@@ -200,6 +249,60 @@ export default function TeamDetailScreen({ route, navigation }) {
         )}
       </View>
 
+      {/* Squad */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>SQUAD</Text>
+        {loadingSquad ? (
+          <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 12 }} />
+        ) : squad.length === 0 ? (
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No squad data available.</Text>
+        ) : (
+          <View style={[styles.squadCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {sortedPositions.map((pos, pi) => (
+              <View key={pos}>
+                <View style={[styles.posHeader, pi > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
+                  <Text style={[styles.posLabel, { color: colors.accent }]}>
+                    {POSITION_SHORT[pos] ?? pos.toUpperCase()}
+                  </Text>
+                </View>
+                {groupedSquad[pos].map((p, i) => (
+                  <TouchableOpacity
+                    key={p.id ?? i}
+                    activeOpacity={0.7}
+                    onPress={() => p.id && navigation.push('PlayerDetail', {
+                      playerId: p.id, playerName: p.name, playerPhoto: p.photo,
+                    })}
+                    style={[
+                      styles.playerRow,
+                      {
+                        borderBottomWidth: (i === groupedSquad[pos].length - 1 && pi === sortedPositions.length - 1) ? 0 : 1,
+                        borderBottomColor: colors.border,
+                        backgroundColor: i % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)'),
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.playerNum, { color: colors.mutedForeground }]}>
+                      {p.number ?? '–'}
+                    </Text>
+                    <View style={[styles.playerPhotoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                      {p.photo
+                        ? <Image source={{ uri: p.photo }} style={styles.playerPhoto} />
+                        : <Ionicons name="person" size={14} color={colors.mutedForeground} />}
+                    </View>
+                    <View style={styles.playerInfo}>
+                      <Text style={[styles.playerName, { color: colors.foreground }]} numberOfLines={1}>{p.name}</Text>
+                      {p.age != null && (
+                        <Text style={[styles.playerAge, { color: colors.mutedForeground }]}>Age {p.age}</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+
       <View style={{ height: 40 }} />
     </ScrollView>
   );
@@ -226,15 +329,16 @@ const styles = StyleSheet.create({
   chipVal:       { fontSize: 20, fontWeight: '900' },
   chipSub:       { fontSize: 9, fontWeight: '700' },
 
-  fixtureCard:   { borderRadius: 20, borderWidth: 1, padding: 16, gap: 8 },
+  fixtureCard:   { borderRadius: 20, borderWidth: 1, padding: 16, gap: 10 },
   fixtureRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   fixtureTeam:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   fixtureLogoWrap:{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   fixtureLogo:   { width: 20, height: 20 },
   fixtureTeamName:{ fontSize: 13, fontWeight: '700', flex: 1 },
   fixtureVs:     { fontSize: 12, fontWeight: '800', marginHorizontal: 8 },
+  fixtureFooter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   fixtureDate:   { fontSize: 12, fontWeight: '600' },
-  fixtureVenue:  { fontSize: 11, fontWeight: '500' },
+  fixtureVenue:  { fontSize: 11, fontWeight: '500', marginTop: 2 },
 
   resultsCard:   { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
   resultRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, gap: 10 },
@@ -246,4 +350,15 @@ const styles = StyleSheet.create({
   resultDate:    { fontSize: 10, fontWeight: '600', width: 44 },
 
   emptyText:     { fontSize: 13, fontWeight: '600' },
+
+  squadCard:     { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
+  posHeader:     { paddingHorizontal: 14, paddingVertical: 8 },
+  posLabel:      { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  playerRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10 },
+  playerNum:     { width: 24, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  playerPhotoWrap: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginHorizontal: 8 },
+  playerPhoto:   { width: 24, height: 24, borderRadius: 12 },
+  playerInfo:    { flex: 1, gap: 2 },
+  playerName:    { fontSize: 13, fontWeight: '700' },
+  playerAge:     { fontSize: 10, fontWeight: '600' },
 });

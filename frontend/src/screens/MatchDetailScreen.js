@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Image, ScrollView, StyleSheet, ActivityIndicator, RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
+import { LEAGUES } from '../constants/leagues';
+import PitchFormation from '../components/PitchFormation';
 import api from '../services/api';
 
 function formatDateTime(dateStr) {
@@ -71,10 +75,21 @@ function StatBar({ label, home, away, colors, isDark }) {
 export default function MatchDetailScreen({ route }) {
   const { match, leagueCode } = route.params;
   const { colors, isDark } = useTheme();
+  const navigation = useNavigation();
+  const leagueLabel = LEAGUES.find(l => l.code === leagueCode)?.label ?? '';
 
   const homeId    = match.teams?.home?.id;
   const awayId    = match.teams?.away?.id;
   const fixtureId = match.id;
+
+  const navigateToTeam = (teamObj, standingsRow) => {
+    const team = standingsRow ?? {
+      team_id: teamObj.id,
+      team_name: teamObj.name,
+      team_logo: teamObj.logo,
+    };
+    navigation.push('TeamDetail', { team, leagueCode, leagueLabel });
+  };
 
   const [standings, setStandings] = useState([]);
   const [h2h,       setH2h]       = useState([]);
@@ -138,7 +153,11 @@ export default function MatchDetailScreen({ route }) {
       {/* Match Header */}
       <View style={[s.headerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={s.teamsRow}>
-          <View style={s.teamCol}>
+          <TouchableOpacity
+            style={s.teamCol}
+            activeOpacity={0.7}
+            onPress={() => match.teams?.home && navigateToTeam(match.teams.home, standings.find(r => r.team_id === homeId))}
+          >
             <View style={[s.teamLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
               {match.teams?.home?.logo
                 ? <Image source={{ uri: match.teams.home.logo }} style={s.teamLogo} />
@@ -147,7 +166,7 @@ export default function MatchDetailScreen({ route }) {
             <Text style={[s.teamName, { color: colors.foreground }]} numberOfLines={2}>
               {match.teams?.home?.name}
             </Text>
-          </View>
+          </TouchableOpacity>
 
           <View style={s.middleCol}>
             {isFinished || isLive ? (
@@ -164,7 +183,11 @@ export default function MatchDetailScreen({ route }) {
             )}
           </View>
 
-          <View style={[s.teamCol, s.teamColRight]}>
+          <TouchableOpacity
+            style={[s.teamCol, s.teamColRight]}
+            activeOpacity={0.7}
+            onPress={() => match.teams?.away && navigateToTeam(match.teams.away, standings.find(r => r.team_id === awayId))}
+          >
             <View style={[s.teamLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
               {match.teams?.away?.logo
                 ? <Image source={{ uri: match.teams.away.logo }} style={s.teamLogo} />
@@ -173,7 +196,7 @@ export default function MatchDetailScreen({ route }) {
             <Text style={[s.teamName, { color: colors.foreground }]} numberOfLines={2}>
               {match.teams?.away?.name}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {match.venue?.name ? (
@@ -222,8 +245,10 @@ export default function MatchDetailScreen({ route }) {
             ) : standings.map((row, i) => {
               const hi = row.team_id === homeId || row.team_id === awayId;
               return (
-                <View
+                <TouchableOpacity
                   key={row.team_name ?? i}
+                  activeOpacity={0.7}
+                  onPress={() => navigateToTeam({ id: row.team_id, name: row.team_name, logo: row.team_logo }, row)}
                   style={[
                     s.tableRow,
                     {
@@ -253,7 +278,7 @@ export default function MatchDetailScreen({ route }) {
                   <Text style={[s.tablePts, { color: hi ? colors.accent : colors.foreground }]}>
                     {row.points}
                   </Text>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -338,35 +363,124 @@ export default function MatchDetailScreen({ route }) {
         {loading.lineups ? <InlineSpinner colors={colors} /> : (!homeLineup && !awayLineup) ? (
           <Text style={[s.empty, { color: colors.mutedForeground }]}>Lineups not yet available.</Text>
         ) : (
-          <View style={[s.lineupsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={s.lineupsRow}>
-              <View style={s.lineupCol}>
-                <Text style={[s.lineupTeam, { color: colors.foreground }]} numberOfLines={1}>
-                  {homeLineup?.team_name ?? match.teams?.home?.name}
-                </Text>
-                {homeLineup?.formation ? (
-                  <Text style={[s.formation, { color: colors.accent }]}>{homeLineup.formation}</Text>
-                ) : null}
-                {(homeLineup?.players ?? []).map((name, i) => (
-                  <Text key={i} style={[s.player, { color: colors.mutedForeground }]}>{name}</Text>
-                ))}
-              </View>
+          <>
+            {/* Pitch formation visuals */}
+            {[homeLineup, awayLineup].filter(Boolean).map((lineup) => (
+              <PitchFormation
+                key={`pitch-${lineup.team_id}`}
+                players={lineup.players ?? []}
+                formation={lineup.formation}
+                teamName={lineup.team_name}
+                isDark={isDark}
+                onPlayerPress={(p) => navigation.push('PlayerDetail', {
+                  playerId: p.id, playerName: p.name, playerPhoto: p.photo,
+                })}
+              />
+            ))}
 
-              <View style={[s.lineupDivider, { backgroundColor: colors.border }]} />
+            {[homeLineup, awayLineup].filter(Boolean).map((lineup) => (
+              <View key={lineup.team_id} style={[s.lineupSection, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 16 }]}>
+                <View style={[s.lineupHeader, { borderBottomColor: colors.border }]}>
+                  <View style={[s.lineupLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                    {lineup.team_logo
+                      ? <Image source={{ uri: lineup.team_logo }} style={s.lineupTeamLogo} />
+                      : <Text style={{ fontSize: 12 }}>⚽</Text>}
+                  </View>
+                  <Text style={[s.lineupTeamName, { color: colors.foreground }]} numberOfLines={1}>
+                    {lineup.team_name}
+                  </Text>
+                  {lineup.formation && (
+                    <View style={[s.formationBadge, { backgroundColor: colors.accent + '1A' }]}>
+                      <Text style={[s.formationText, { color: colors.accent }]}>{lineup.formation}</Text>
+                    </View>
+                  )}
+                </View>
 
-              <View style={[s.lineupCol, { alignItems: 'flex-end' }]}>
-                <Text style={[s.lineupTeam, { color: colors.foreground, textAlign: 'right' }]} numberOfLines={1}>
-                  {awayLineup?.team_name ?? match.teams?.away?.name}
-                </Text>
-                {awayLineup?.formation ? (
-                  <Text style={[s.formation, { color: colors.accent, textAlign: 'right' }]}>{awayLineup.formation}</Text>
-                ) : null}
-                {(awayLineup?.players ?? []).map((name, i) => (
-                  <Text key={i} style={[s.player, { color: colors.mutedForeground, textAlign: 'right' }]}>{name}</Text>
-                ))}
+                <View style={s.lineupSubtitle}>
+                  <Text style={[s.lineupSubtitleText, { color: colors.accent }]}>STARTING XI</Text>
+                </View>
+
+                {(lineup.players ?? []).map((p, i) => {
+                  const player = typeof p === 'string' ? { name: p } : p;
+                  return (
+                    <TouchableOpacity
+                      key={player.id ?? i}
+                      activeOpacity={0.7}
+                      onPress={() => player.id && navigation.push('PlayerDetail', {
+                        playerId: player.id, playerName: player.name, playerPhoto: player.photo,
+                      })}
+                      style={[
+                        s.playerRow,
+                        {
+                          borderBottomWidth: 1,
+                          borderBottomColor: colors.border,
+                          backgroundColor: i % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)'),
+                        },
+                      ]}
+                    >
+                      <Text style={[s.playerNum, { color: colors.mutedForeground }]}>
+                        {player.number ?? '–'}
+                      </Text>
+                      <View style={[s.playerPhotoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                        {player.photo
+                          ? <Image source={{ uri: player.photo }} style={s.playerPhoto} />
+                          : <View style={s.playerPhotoPlaceholder} />}
+                      </View>
+                      <Text style={[s.playerName, { color: colors.foreground }]} numberOfLines={1}>
+                        {player.name}
+                      </Text>
+                      {player.pos && (
+                        <Text style={[s.playerPos, { color: colors.mutedForeground }]}>{player.pos}</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+
+                {(lineup.substitutes ?? []).length > 0 && (
+                  <>
+                    <View style={[s.lineupSubtitle, { borderTopWidth: 1, borderTopColor: colors.border }]}>
+                      <Text style={[s.lineupSubtitleText, { color: colors.mutedForeground }]}>SUBSTITUTES</Text>
+                    </View>
+                    {lineup.substitutes.map((p, i) => {
+                      const player = typeof p === 'string' ? { name: p } : p;
+                      return (
+                        <TouchableOpacity
+                          key={player.id ?? `sub-${i}`}
+                          activeOpacity={0.7}
+                          onPress={() => player.id && navigation.push('PlayerDetail', {
+                            playerId: player.id, playerName: player.name, playerPhoto: player.photo,
+                          })}
+                          style={[
+                            s.playerRow,
+                            {
+                              borderBottomWidth: i === lineup.substitutes.length - 1 ? 0 : 1,
+                              borderBottomColor: colors.border,
+                              backgroundColor: i % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)'),
+                            },
+                          ]}
+                        >
+                          <Text style={[s.playerNum, { color: colors.mutedForeground }]}>
+                            {player.number ?? '–'}
+                          </Text>
+                          <View style={[s.playerPhotoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                            {player.photo
+                              ? <Image source={{ uri: player.photo }} style={s.playerPhoto} />
+                              : <View style={s.playerPhotoPlaceholder} />}
+                          </View>
+                          <Text style={[s.playerName, { color: colors.foreground }]} numberOfLines={1}>
+                            {player.name}
+                          </Text>
+                          {player.pos && (
+                            <Text style={[s.playerPos, { color: colors.mutedForeground }]}>{player.pos}</Text>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </>
+                )}
               </View>
-            </View>
-          </View>
+            ))}
+          </>
         )}
       </View>
 
@@ -428,11 +542,20 @@ const s = StyleSheet.create({
   formNone:     { fontSize: 12, fontWeight: '600' },
   formDivider:  { height: 1, marginHorizontal: 16 },
 
-  lineupsCard:  { borderRadius: 20, borderWidth: 1, padding: 16 },
-  lineupsRow:   { flexDirection: 'row', gap: 12 },
-  lineupCol:    { flex: 1, gap: 6 },
-  lineupTeam:   { fontSize: 13, fontWeight: '800' },
-  formation:    { fontSize: 11, fontWeight: '700' },
-  player:       { fontSize: 12, fontWeight: '500' },
-  lineupDivider:{ width: 1, marginVertical: 4 },
+  lineupSection:      { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
+  lineupHeader:       { flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, gap: 10 },
+  lineupLogoWrap:     { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  lineupTeamLogo:     { width: 16, height: 16 },
+  lineupTeamName:     { flex: 1, fontSize: 14, fontWeight: '800' },
+  formationBadge:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  formationText:      { fontSize: 11, fontWeight: '800' },
+  lineupSubtitle:     { paddingHorizontal: 14, paddingVertical: 6 },
+  lineupSubtitleText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.8 },
+  playerRow:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8 },
+  playerNum:          { width: 22, fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  playerPhotoWrap:    { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginHorizontal: 8 },
+  playerPhoto:        { width: 24, height: 24, borderRadius: 12 },
+  playerPhotoPlaceholder: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(128,128,128,0.15)' },
+  playerName:         { flex: 1, fontSize: 13, fontWeight: '600' },
+  playerPos:          { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, width: 28, textAlign: 'right' },
 });

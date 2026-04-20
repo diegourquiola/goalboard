@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, Modal, Image,
   ScrollView, RefreshControl, StyleSheet, ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import api from '../services/api';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
@@ -11,6 +12,7 @@ import { LEAGUES, LEAGUE_ZONES } from '../constants/leagues';
 
 export default function StandingsScreen() {
   const { colors, isDark } = useTheme();
+  const navigation = useNavigation();
   const [league, setLeague] = useState('PL');
   const [standings, setStandings] = useState([]);
   const [leagueName, setLeagueName] = useState('');
@@ -48,11 +50,15 @@ export default function StandingsScreen() {
     return null;
   };
 
+  const leagueLabel = LEAGUES.find(l => l.code === league)?.label ?? '';
+
   const renderRow = ({ item: row, index }) => {
     const indicatorColor = getStatusIndicator(row.position);
     return (
-      <View
+      <TouchableOpacity
         key={row.team_name ?? index}
+        activeOpacity={0.7}
+        onPress={() => navigation.navigate('TeamDetail', { team: row, leagueCode: league, leagueLabel })}
         style={[
           styles.row,
           {
@@ -83,7 +89,7 @@ export default function StandingsScreen() {
           {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
         </Text>
         <Text style={[styles.cell, styles.pts, { color: colors.foreground }]}>{row.points}</Text>
-      </View>
+      </TouchableOpacity>
     );
   };
 

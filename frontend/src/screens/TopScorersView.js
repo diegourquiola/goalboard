@@ -1,14 +1,17 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, FlatList, Image, StyleSheet, RefreshControl, ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import api from '../services/api';
 import ErrorState from '../components/ErrorState';
 import { useTheme } from '../theme/ThemeContext';
 
 export default function TopScorersView({ leagueCode }) {
   const { colors, isDark } = useTheme();
+  const navigation = useNavigation();
   const [scorers, setScorers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -45,7 +48,11 @@ export default function TopScorersView({ leagueCode }) {
   if (error) return <ErrorState message={error} onRetry={fetchScorers} />;
 
   const renderItem = ({ item, index }) => (
-    <View
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() => item.id && navigation.push('PlayerDetail', {
+        playerId: item.id, playerName: item.name, playerPhoto: item.photo,
+      })}
       style={[
         styles.row,
         {
@@ -81,7 +88,7 @@ export default function TopScorersView({ leagueCode }) {
         <Text style={[styles.assists, { color: colors.mutedForeground }]}>{item.assists}</Text>
         <Text style={[styles.statsLabel, { color: colors.mutedForeground }]}>ast</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (

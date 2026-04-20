@@ -42,28 +42,6 @@ export default function LeaguesListScreen({ onSelect }) {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Featured Competitions */}
-      <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
-        FEATURED COMPETITIONS
-      </Text>
-      <View style={styles.grid}>
-        {LEAGUES.map(league => (
-          <TouchableOpacity
-            key={league.code}
-            style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-            activeOpacity={0.7}
-            onPress={() => onSelect(league)}
-          >
-            <View style={styles.logoCircle}>
-              <Image source={{ uri: league.logo }} style={styles.logo} resizeMode="contain" />
-            </View>
-            <Text style={[styles.cardLabel, { color: colors.foreground }]} numberOfLines={2}>
-              {league.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
       {/* Search bar */}
       <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Ionicons name="search" size={18} color={colors.mutedForeground} style={styles.searchIcon} />
@@ -108,6 +86,28 @@ export default function LeaguesListScreen({ onSelect }) {
       {query.length >= 2 && !searching && results.length === 0 && (
         <Text style={[styles.noResults, { color: colors.mutedForeground }]}>No leagues found.</Text>
       )}
+
+      {/* Featured Competitions */}
+      <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
+        FEATURED COMPETITIONS
+      </Text>
+      <View style={styles.grid}>
+        {LEAGUES.map(league => (
+          <TouchableOpacity
+            key={league.code}
+            style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+            activeOpacity={0.7}
+            onPress={() => onSelect(league)}
+          >
+            <View style={styles.logoCircle}>
+              <Image source={{ uri: league.logo }} style={styles.logo} resizeMode="contain" />
+            </View>
+            <Text style={[styles.cardLabel, { color: colors.foreground }]} numberOfLines={2}>
+              {league.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </ScrollView>
   );
 }

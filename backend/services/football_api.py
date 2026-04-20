@@ -239,16 +239,35 @@ def get_fixture_lineups(fixture_id: int) -> list:
     result = []
     for team_data in raw.get("response", []):
         team = team_data.get("team", {})
-        players = [
-            p.get("player", {}).get("name")
-            for p in team_data.get("startXI", [])
-        ]
+        players = []
+        for entry in team_data.get("startXI", []):
+            p = entry.get("player", {})
+            players.append({
+                "id": p.get("id"),
+                "name": p.get("name"),
+                "number": p.get("number"),
+                "pos": p.get("pos"),
+                "grid": p.get("grid"),
+                "photo": f"https://media.api-sports.io/football/players/{p.get('id')}.png" if p.get("id") else None,
+            })
+        subs = []
+        for entry in team_data.get("substitutes", []):
+            p = entry.get("player", {})
+            subs.append({
+                "id": p.get("id"),
+                "name": p.get("name"),
+                "number": p.get("number"),
+                "pos": p.get("pos"),
+                "grid": None,
+                "photo": f"https://media.api-sports.io/football/players/{p.get('id')}.png" if p.get("id") else None,
+            })
         result.append({
             "team_id":   team.get("id"),
             "team_name": team.get("name"),
             "team_logo": team.get("logo"),
             "formation": team_data.get("formation"),
             "players":   players,
+            "substitutes": subs,
         })
     return result
 
@@ -279,6 +298,135 @@ def get_top_scorers(league_code: str) -> list:
             "appearances": stat.get("games", {}).get("appearences") or 0,
         })
     return result
+
+
+def get_squad(team_id: int) -> list:
+    raw = _get("/players/squads", params={"team": team_id}, ttl=600)
+    response = raw.get("response", [])
+    if not response:
+        return []
+    players = response[0].get("players", [])
+    return [
+        {
+            "id": p.get("id"),
+            "name": p.get("name"),
+            "age": p.get("age"),
+            "number": p.get("number"),
+            "position": p.get("position"),
+            "photo": p.get("photo"),
+        }
+        for p in players
+    ]
+
+
+def get_player(player_id: int) -> dict:
+    raw = _get("/players", params={"id": player_id, "season": CURRENT_SEASON}, ttl=600)
+    response = raw.get("response", [])
+    if not response:
+        raise ValueError(f"Player not found: {player_id}")
+
+    item = response[0]
+    p = item.get("player", {})
+    birth = p.get("birth", {})
+
+    stats = []
+    for s in item.get("statistics", []):
+        team_info = s.get("team", {})
+        league_info = s.get("league", {})
+        games = s.get("games", {})
+        shots = s.get("shots", {})
+        goals = s.get("goals", {})
+        passes = s.get("passes", {})
+        tackles = s.get("tackles", {})
+        duels = s.get("duels", {})
+        dribbles = s.get("dribbles", {})
+        fouls = s.get("fouls", {})
+        cards = s.get("cards", {})
+        penalty = s.get("penalty", {})
+
+        stats.append({
+            "team": {
+                "id": team_info.get("id"),
+                "name": team_info.get("name"),
+                "logo": team_info.get("logo"),
+            },
+            "league": {
+                "id": league_info.get("id"),
+                "name": league_info.get("name"),
+                "logo": league_info.get("logo"),
+                "country": league_info.get("country"),
+                "season": league_info.get("season"),
+            },
+            "games": {
+                "appearances": games.get("appearences"),
+                "lineups": games.get("lineups"),
+                "minutes": games.get("minutes"),
+                "position": games.get("position"),
+                "rating": games.get("rating"),
+                "captain": games.get("captain"),
+            },
+            "shots": {
+                "total": shots.get("total"),
+                "on": shots.get("on"),
+            },
+            "goals": {
+                "total": goals.get("total"),
+                "conceded": goals.get("conceded"),
+                "assists": goals.get("assists"),
+                "saves": goals.get("saves"),
+            },
+            "passes": {
+                "total": passes.get("total"),
+                "key": passes.get("key"),
+                "accuracy": passes.get("accuracy"),
+            },
+            "tackles": {
+                "total": tackles.get("total"),
+                "blocks": tackles.get("blocks"),
+                "interceptions": tackles.get("interceptions"),
+            },
+            "duels": {
+                "total": duels.get("total"),
+                "won": duels.get("won"),
+            },
+            "dribbles": {
+                "attempts": dribbles.get("attempts"),
+                "success": dribbles.get("success"),
+            },
+            "fouls": {
+                "drawn": fouls.get("drawn"),
+                "committed": fouls.get("committed"),
+            },
+            "cards": {
+                "yellow": cards.get("yellow"),
+                "red": cards.get("red"),
+            },
+            "penalty": {
+                "won": penalty.get("won"),
+                "committed": penalty.get("commited"),
+                "scored": penalty.get("scored"),
+                "missed": penalty.get("missed"),
+            },
+        })
+
+    return {
+        "id": p.get("id"),
+        "name": p.get("name"),
+        "firstname": p.get("firstname"),
+        "lastname": p.get("lastname"),
+        "age": p.get("age"),
+        "birth": {
+            "date": birth.get("date"),
+            "place": birth.get("place"),
+            "country": birth.get("country"),
+        },
+        "nationality": p.get("nationality"),
+        "height": p.get("height"),
+        "weight": p.get("weight"),
+        "photo": p.get("photo"),
+        "injured": p.get("injured", False),
+        "statistics": stats,
+    }
 
 
 def get_team_next_fixture(team_id: int) -> dict | None:

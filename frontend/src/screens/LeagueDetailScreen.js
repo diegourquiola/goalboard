@@ -3,17 +3,20 @@ import {
   View, Text, TouchableOpacity, Image, ScrollView, FlatList,
   RefreshControl, StyleSheet, ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import api from '../services/api';
 import ErrorState from '../components/ErrorState';
 import AllMatchesView from './AllMatchesView';
 import TopScorersView from './TopScorersView';
 import { useTheme } from '../theme/ThemeContext';
-import { LEAGUE_ZONES } from '../constants/leagues';
+import { LEAGUES, LEAGUE_ZONES } from '../constants/leagues';
 
 const TABS = ['Standings', 'Matches', 'Top Scorers'];
 
 function StandingsView({ leagueCode }) {
   const { colors, isDark } = useTheme();
+  const navigation = useNavigation();
+  const leagueLabel = LEAGUES.find(l => l.code === leagueCode)?.label ?? '';
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -64,8 +67,10 @@ function StandingsView({ leagueCode }) {
         {standings.map((row, index) => {
           const ind = getIndicator(row.position);
           return (
-            <View
+            <TouchableOpacity
               key={row.team_name ?? index}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('TeamDetail', { team: row, leagueCode, leagueLabel })}
               style={[
                 s.row,
                 {
@@ -90,7 +95,7 @@ function StandingsView({ leagueCode }) {
                 {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
               </Text>
               <Text style={[s.cell, s.pts, { color: colors.foreground }]}>{row.points}</Text>
-            </View>
+            </TouchableOpacity>
           );
         })}
 
