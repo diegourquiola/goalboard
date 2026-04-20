@@ -13,14 +13,16 @@ const MATCH_H  = 60;
 
 function formatDateLabel(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d)) return dateStr;
   const todayKey    = new Date().toISOString().split('T')[0];
   const tomorrowKey = (() => { const t = new Date(); t.setDate(t.getDate() + 1); return t.toISOString().split('T')[0]; })();
   const dayKey = dateStr.split('T')[0];
   if (dayKey === todayKey)    return 'TODAY';
   if (dayKey === tomorrowKey) return 'TOMORROW';
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
+  // Parse YYYY-MM-DD parts manually to avoid UTC-midnight shift in western timezones
+  const [y, m, day] = dayKey.split('-').map(Number);
+  const local = new Date(y, m - 1, day);
+  if (isNaN(local)) return dateStr;
+  return local.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
 }
 
 function formatKickoff(dateStr) {

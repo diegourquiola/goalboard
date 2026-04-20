@@ -57,9 +57,10 @@ function getDateRange(filterKey) {
 
 function formatGroupDate(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d)) return dateStr;
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  const [y, m, day] = dateStr.split('T')[0].split('-').map(Number);
+  const local = new Date(y, m - 1, day);
+  if (isNaN(local)) return dateStr;
+  return local.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
 function formatKickoff(dateStr) {
