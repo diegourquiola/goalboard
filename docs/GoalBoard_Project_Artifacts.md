@@ -30,7 +30,7 @@ Soccer fans who follow multiple leagues often struggle to get a consolidated, cl
 
 ### 1.2 Project Overview
 
-GoalBoard is a mobile application built with React Native (Expo) on the frontend and Python (FastAPI) on the backend. It connects to the Soccerdata REST API to fetch real-time and historical soccer data. The app provides three core capabilities: browsing league standings, viewing match results with filtering, and visualizing team performance trends through interactive charts.
+GoalBoard is a mobile application built with React Native (Expo) on the frontend and Python (FastAPI) on the backend. It connects to the API-Football REST API to fetch real-time and historical soccer data. The app provides three core capabilities: browsing league standings, viewing match results with filtering, and visualizing team performance trends through interactive charts.
 
 The application demonstrates a complete software engineering lifecycle including requirements analysis, architectural design, iterative implementation, quality assurance, and considerations for deployment and long-term maintenance.
 
@@ -152,11 +152,11 @@ GoalBoard uses a three-tier architecture with clear separation of concerns:
 
 ### 5.2 Key Design Decisions and Tradeoffs
 
-**Backend proxy vs. direct API calls:** The app routes all API calls through a Python backend rather than calling the Soccerdata API directly from the mobile client. This adds a server component but provides caching, rate-limit management, data transformation, and keeps the API key off the client device.
+**Backend proxy vs. direct API calls:** The app routes all API calls through a Python backend rather than calling the API-Football directly from the mobile client. This adds a server component but provides caching, rate-limit management, data transformation, and keeps the API key off the client device.
 
 **React Native with Expo vs. native development:** Expo was chosen over native Swift/Kotlin to maximize code reuse across iOS and Android with a single JavaScript codebase. The tradeoff is slightly less access to native APIs, but GoalBoard's feature set does not require low-level device access.
 
-**Local caching strategy:** The backend caches API responses with a configurable TTL (time-to-live). This reduces Soccerdata API usage and improves perceived app speed. The tradeoff is that data may be slightly stale, which is acceptable for match data that updates infrequently.
+**Local caching strategy:** The backend caches API responses with a configurable TTL (time-to-live). This reduces API-Football usage and improves perceived app speed. The tradeoff is that data may be slightly stale, which is acceptable for match data that updates infrequently.
 
 **Chart library selection:** `react-native-chart-kit` was selected for trend visualizations due to its simplicity and Expo compatibility. More powerful libraries like Victory Native exist but add complexity that is not justified for this scope.
 
