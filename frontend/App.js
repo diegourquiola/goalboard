@@ -3,12 +3,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { hapticLight } from './src/utils/haptics';
 
 import LeaguesTab          from './src/screens/LeaguesTab';
-import TeamsScreen         from './src/screens/TeamsScreen';
+import TeamsTab            from './src/screens/TeamsTab';
 import MatchDetailScreen   from './src/screens/MatchDetailScreen';
 import TeamDetailScreen    from './src/screens/TeamDetailScreen';
 import TeamFixturesScreen  from './src/screens/TeamFixturesScreen';
@@ -17,39 +16,14 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
-const logo  = require('./assets/logo.png');
 
 function MainTabs() {
-  const { isDark, colors, toggle } = useTheme();
+  const { isDark, colors } = useTheme();
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerStyle: {
-          backgroundColor: colors.background,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-          elevation: 0,
-          shadowOpacity: 0,
-          height: 120,
-        },
-        headerTitleAlign: 'left',
-        headerTitle: route.name === 'Teams' ? () => (
-          <View style={styles.appHeader}>
-            <Image source={logo} style={styles.appLogo} resizeMode="contain" />
-            <Text style={[styles.appName, { color: colors.foreground }]}>GoalBoard</Text>
-          </View>
-        ) : undefined,
-        headerRight: route.name === 'Teams' ? () => (
-          <TouchableOpacity
-            onPress={() => { hapticLight(); toggle(); }}
-            style={[styles.iconBtn, {
-              backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-            }]}
-          >
-            <Ionicons name={isDark ? 'sunny' : 'moon'} size={20} color={colors.foreground} />
-          </TouchableOpacity>
-        ) : undefined,
+        headerShown: false,
         tabBarIcon: ({ focused, color, size }) => {
           const icons = {
             Leagues: focused ? 'trophy'  : 'trophy-outline',
@@ -82,8 +56,24 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Leagues" component={LeaguesTab} />
-      <Tab.Screen name="Teams"   component={TeamsScreen} />
+      <Tab.Screen
+        name="Leagues"
+        component={LeaguesTab}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            navigation.navigate('Leagues', { screen: 'LeaguesList' });
+          },
+        })}
+      />
+      <Tab.Screen
+        name="Teams"
+        component={TeamsTab}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            navigation.navigate('Teams', { screen: 'TeamsList' });
+          },
+        })}
+      />
     </Tab.Navigator>
   );
 }
@@ -171,10 +161,6 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  appHeader:        { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  appLogo:          { width: 32, height: 32, borderRadius: 8 },
-  appName:          { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
-  iconBtn:          { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginRight: 20 },
   tabIconContainer: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
   activeIndicator:  { position: 'absolute', bottom: -12, width: 4, height: 4, borderRadius: 2 },
 });
