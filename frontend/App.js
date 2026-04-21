@@ -121,6 +121,7 @@ function AppContent() {
             headerStyle:      { backgroundColor: colors.background },
             headerTintColor:  colors.foreground,
             headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+            headerBackTitle:  '',
           }}
         />
         <Stack.Screen
@@ -132,6 +133,7 @@ function AppContent() {
             headerStyle:      { backgroundColor: colors.background },
             headerTintColor:  colors.foreground,
             headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+            headerBackTitle:  '',
           }}
         />
         <Stack.Screen
@@ -143,6 +145,7 @@ function AppContent() {
             headerStyle:      { backgroundColor: colors.background },
             headerTintColor:  colors.foreground,
             headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+            headerBackTitle:  '',
           }}
         />
       </Stack.Navigator>
