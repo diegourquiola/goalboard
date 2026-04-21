@@ -128,11 +128,11 @@ function EventRow({ event, colors, homeId }) {
           <View style={s.eventHomeContent}>
             <Text style={s.eventIcon}>{icon}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[s.eventPlayer, { color: type === 'subst' ? colors.chartGreen : colors.foreground }]} numberOfLines={1}>
+              <Text style={[s.eventPlayer, { color: type === 'subst' ? colors.destructive : colors.foreground }]} numberOfLines={1}>
                 {event.player_name}
               </Text>
               {(type === 'Goal' || type === 'subst') && event.assist_name ? (
-                <Text style={[s.eventAssist, { color: type === 'subst' ? colors.destructive : colors.mutedForeground }]} numberOfLines={1}>
+                <Text style={[s.eventAssist, { color: type === 'subst' ? colors.chartGreen : colors.mutedForeground }]} numberOfLines={1}>
                   ↳ {event.assist_name}
                 </Text>
               ) : null}
@@ -145,11 +145,11 @@ function EventRow({ event, colors, homeId }) {
         {!isHome && (
           <View style={s.eventAwayContent}>
             <View style={{ flex: 1 }}>
-              <Text style={[s.eventPlayer, { color: type === 'subst' ? colors.chartGreen : colors.foreground, textAlign: 'right' }]} numberOfLines={1}>
+              <Text style={[s.eventPlayer, { color: type === 'subst' ? colors.destructive : colors.foreground, textAlign: 'right' }]} numberOfLines={1}>
                 {event.player_name}
               </Text>
               {(type === 'Goal' || type === 'subst') && event.assist_name ? (
-                <Text style={[s.eventAssist, { color: type === 'subst' ? colors.destructive : colors.mutedForeground, textAlign: 'right' }]} numberOfLines={1}>
+                <Text style={[s.eventAssist, { color: type === 'subst' ? colors.chartGreen : colors.mutedForeground, textAlign: 'right' }]} numberOfLines={1}>
                   {event.assist_name} ↲
                 </Text>
               ) : null}
@@ -312,6 +312,43 @@ export default function MatchDetailScreen({ route }) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
           }
         >
+          {/* League Table */}
+          <View style={s.section}>
+            <SectionTitle label="LEAGUE TABLE" colors={colors} />
+            {loading.standings ? <InlineSpinner colors={colors} /> :
+             errors.standings  ? <RetryButton onPress={fetchStandings} colors={colors} /> : (
+               <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                 {teamRows.length === 0 ? (
+                   <Text style={[s.empty, { color: colors.mutedForeground }]}>No standings data.</Text>
+                 ) : teamRows.map((row, i) => (
+                   <TouchableOpacity
+                     key={row.team_name ?? i}
+                     activeOpacity={0.7}
+                     onPress={() => navigateToTeam({ id: row.team_id, name: row.team_name, logo: row.team_logo }, row)}
+                     style={[s.tableRow, {
+                       backgroundColor: colors.accent + '1A',
+                       borderBottomColor: colors.border,
+                       borderBottomWidth: i === teamRows.length - 1 ? 0 : 1,
+                     }]}
+                   >
+                     <Text style={[s.tablePos, { color: colors.accent }]}>{row.position}</Text>
+                     <View style={[s.tableLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                       {row.team_logo
+                         ? <Image source={{ uri: row.team_logo }} style={s.tableTeamLogo} />
+                         : <Text style={{ fontSize: 8 }}>⚽</Text>}
+                     </View>
+                     <Text style={[s.tableTeam, { color: colors.accent }]} numberOfLines={1}>{row.team_name}</Text>
+                     <Text style={[s.tableCell, { color: colors.mutedForeground }]}>{row.games_played}</Text>
+                     <Text style={[s.tableCell, { color: colors.mutedForeground }]}>
+                       {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
+                     </Text>
+                     <Text style={[s.tablePts, { color: colors.accent }]}>{row.points}</Text>
+                   </TouchableOpacity>
+                 ))}
+               </View>
+             )}
+          </View>
+
           {/* Events */}
           <View style={s.section}>
             <SectionTitle label="EVENTS" colors={colors} />
@@ -402,42 +439,6 @@ export default function MatchDetailScreen({ route }) {
              )}
           </View>
 
-          {/* League Table */}
-          <View style={s.section}>
-            <SectionTitle label="LEAGUE TABLE" colors={colors} />
-            {loading.standings ? <InlineSpinner colors={colors} /> :
-             errors.standings  ? <RetryButton onPress={fetchStandings} colors={colors} /> : (
-               <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                 {teamRows.length === 0 ? (
-                   <Text style={[s.empty, { color: colors.mutedForeground }]}>No standings data.</Text>
-                 ) : teamRows.map((row, i) => (
-                   <TouchableOpacity
-                     key={row.team_name ?? i}
-                     activeOpacity={0.7}
-                     onPress={() => navigateToTeam({ id: row.team_id, name: row.team_name, logo: row.team_logo }, row)}
-                     style={[s.tableRow, {
-                       backgroundColor: colors.accent + '1A',
-                       borderBottomColor: colors.border,
-                       borderBottomWidth: i === teamRows.length - 1 ? 0 : 1,
-                     }]}
-                   >
-                     <Text style={[s.tablePos, { color: colors.accent }]}>{row.position}</Text>
-                     <View style={[s.tableLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
-                       {row.team_logo
-                         ? <Image source={{ uri: row.team_logo }} style={s.tableTeamLogo} />
-                         : <Text style={{ fontSize: 8 }}>⚽</Text>}
-                     </View>
-                     <Text style={[s.tableTeam, { color: colors.accent }]} numberOfLines={1}>{row.team_name}</Text>
-                     <Text style={[s.tableCell, { color: colors.mutedForeground }]}>{row.games_played}</Text>
-                     <Text style={[s.tableCell, { color: colors.mutedForeground }]}>
-                       {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
-                     </Text>
-                     <Text style={[s.tablePts, { color: colors.accent }]}>{row.points}</Text>
-                   </TouchableOpacity>
-                 ))}
-               </View>
-             )}
-          </View>
         </ScrollView>
       );
     }
