@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 
 import LeaguesTab          from './src/screens/LeaguesTab';
@@ -29,14 +29,7 @@ function MainTabs() {
             Leagues: focused ? 'trophy'  : 'trophy-outline',
             Teams:   focused ? 'people'  : 'people-outline',
           };
-          return (
-            <View style={styles.tabIconContainer}>
-              <Ionicons name={icons[route.name]} size={size} color={color} />
-              {focused && (
-                <View style={[styles.activeIndicator, { backgroundColor: colors.accent }]} />
-              )}
-            </View>
-          );
+          return <Ionicons name={icons[route.name]} size={size} color={color} />;
         },
         tabBarActiveTintColor:   colors.accent,
         tabBarInactiveTintColor: colors.mutedForeground,
@@ -160,7 +153,4 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({
-  tabIconContainer: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  activeIndicator:  { position: 'absolute', bottom: -12, width: 4, height: 4, borderRadius: 2 },
-});
+const styles = StyleSheet.create({});
