@@ -128,11 +128,11 @@ function EventRow({ event, colors, homeId }) {
           <View style={s.eventHomeContent}>
             <Text style={s.eventIcon}>{icon}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[s.eventPlayer, { color: colors.foreground }]} numberOfLines={1}>
+              <Text style={[s.eventPlayer, { color: type === 'subst' ? colors.chartGreen : colors.foreground }]} numberOfLines={1}>
                 {event.player_name}
               </Text>
               {(type === 'Goal' || type === 'subst') && event.assist_name ? (
-                <Text style={[s.eventAssist, { color: colors.mutedForeground }]} numberOfLines={1}>
+                <Text style={[s.eventAssist, { color: type === 'subst' ? colors.destructive : colors.mutedForeground }]} numberOfLines={1}>
                   ↳ {event.assist_name}
                 </Text>
               ) : null}
@@ -145,11 +145,11 @@ function EventRow({ event, colors, homeId }) {
         {!isHome && (
           <View style={s.eventAwayContent}>
             <View style={{ flex: 1 }}>
-              <Text style={[s.eventPlayer, { color: colors.foreground, textAlign: 'right' }]} numberOfLines={1}>
+              <Text style={[s.eventPlayer, { color: type === 'subst' ? colors.chartGreen : colors.foreground, textAlign: 'right' }]} numberOfLines={1}>
                 {event.player_name}
               </Text>
               {(type === 'Goal' || type === 'subst') && event.assist_name ? (
-                <Text style={[s.eventAssist, { color: colors.mutedForeground, textAlign: 'right' }]} numberOfLines={1}>
+                <Text style={[s.eventAssist, { color: type === 'subst' ? colors.destructive : colors.mutedForeground, textAlign: 'right' }]} numberOfLines={1}>
                   {event.assist_name} ↲
                 </Text>
               ) : null}
