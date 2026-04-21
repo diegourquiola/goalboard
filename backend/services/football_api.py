@@ -304,6 +304,83 @@ def get_fixture_lineups(fixture_id: int) -> list:
     return result
 
 
+STAT_KEYS = {
+    "Shots on Goal",
+    "Shots off Goal",
+    "Total Shots",
+    "Blocked Shots",
+    "Shots insidebox",
+    "Shots outsidebox",
+    "Fouls",
+    "Corner Kicks",
+    "Offsides",
+    "Ball Possession",
+    "Yellow Cards",
+    "Red Cards",
+    "Goalkeeper Saves",
+    "Passes accurate",
+    "Passes %",
+}
+
+
+def _parse_stat_value(val) -> int:
+    if val is None:
+        return 0
+    if isinstance(val, str):
+        try:
+            return int(val.replace("%", "").strip())
+        except ValueError:
+            return 0
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return 0
+
+
+def get_fixture_statistics(fixture_id: int) -> list:
+    raw = _get("/fixtures/statistics", params={"fixture": fixture_id}, ttl=30)
+    result = []
+    for team_data in raw.get("response", []):
+        team = team_data.get("team", {})
+        stats = {}
+        for s in team_data.get("statistics", []):
+            stat_type = s.get("type", "")
+            if stat_type in STAT_KEYS:
+                stats[stat_type] = _parse_stat_value(s.get("value"))
+        result.append({
+            "team_id":   team.get("id"),
+            "team_name": team.get("name"),
+            "team_logo": team.get("logo"),
+            "stats":     stats,
+        })
+    return result
+
+
+def get_fixture_events(fixture_id: int) -> list:
+    raw = _get("/fixtures/events", params={"fixture": fixture_id}, ttl=30)
+    events = []
+    for e in raw.get("response", []):
+        time   = e.get("time", {})
+        team   = e.get("team", {})
+        player = e.get("player", {})
+        assist = e.get("assist", {})
+        events.append({
+            "minute":       time.get("elapsed"),
+            "extra_minute": time.get("extra"),
+            "team_id":      team.get("id"),
+            "team_name":    team.get("name"),
+            "team_logo":    team.get("logo"),
+            "player_name":  player.get("name"),
+            "assist_name":  assist.get("name") or None,
+            "type":         e.get("type"),
+            "detail":       e.get("detail"),
+        })
+    return sorted(
+        events,
+        key=lambda ev: (ev.get("minute") or 0, ev.get("extra_minute") or 0),
+    )
+
+
 def get_top_scorers(league_code: str) -> list:
     league_id = _get_league_id(league_code)
     raw = _get(

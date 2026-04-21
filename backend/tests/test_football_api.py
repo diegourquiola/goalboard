@@ -233,3 +233,104 @@ def test_get_team_next_fixture_returns_none_when_empty():
     with patch("services.football_api._get", return_value={"response": []}):
         result = get_team_next_fixture(33)
     assert result is None
+
+
+def test_get_fixture_statistics_returns_two_teams():
+    sample = {
+        "response": [
+            {
+                "team": {"id": 33, "name": "Man Utd", "logo": "https://logo.png"},
+                "statistics": [
+                    {"type": "Shots on Goal", "value": 4},
+                    {"type": "Ball Possession", "value": "52%"},
+                    {"type": "Yellow Cards", "value": 2},
+                    {"type": "Passes %", "value": "89%"},
+                    {"type": "Ignored Stat", "value": 99},
+                ],
+            },
+            {
+                "team": {"id": 40, "name": "Liverpool", "logo": "https://logo2.png"},
+                "statistics": [
+                    {"type": "Shots on Goal", "value": 7},
+                    {"type": "Ball Possession", "value": "48%"},
+                    {"type": "Yellow Cards", "value": None},
+                ],
+            },
+        ]
+    }
+    with patch("services.football_api.httpx.Client") as mock_client_cls:
+        mock_client = mock_client_cls.return_value.__enter__.return_value
+        mock_client.get.return_value = mock_response(sample)
+        result = football_api.get_fixture_statistics(1234)
+
+    assert len(result) == 2
+    assert result[0]["team_id"] == 33
+    assert result[0]["stats"]["Shots on Goal"] == 4
+    assert result[0]["stats"]["Ball Possession"] == 52   # "52%" → 52
+    assert result[0]["stats"]["Passes %"] == 89          # "89%" → 89
+    assert "Ignored Stat" not in result[0]["stats"]      # not in STAT_KEYS
+    assert result[1]["stats"]["Yellow Cards"] == 0        # None → 0
+
+
+def test_get_fixture_statistics_handles_empty():
+    sample = {"response": []}
+    with patch("services.football_api.httpx.Client") as mock_client_cls:
+        mock_client = mock_client_cls.return_value.__enter__.return_value
+        mock_client.get.return_value = mock_response(sample)
+        result = football_api.get_fixture_statistics(9999)
+    assert result == []
+
+
+def test_get_fixture_events_returns_sorted_events():
+    sample = {
+        "response": [
+            {
+                "time": {"elapsed": 67, "extra": None},
+                "team": {"id": 40, "name": "Liverpool", "logo": "https://logo.png"},
+                "player": {"id": 111, "name": "Salah"},
+                "assist": {"id": None, "name": None},
+                "type": "Card",
+                "detail": "Yellow Card",
+            },
+            {
+                "time": {"elapsed": 23, "extra": None},
+                "team": {"id": 33, "name": "Man Utd", "logo": "https://logo2.png"},
+                "player": {"id": 222, "name": "Rashford"},
+                "assist": {"id": 333, "name": "Bruno"},
+                "type": "Goal",
+                "detail": "Normal Goal",
+            },
+            {
+                "time": {"elapsed": 45, "extra": 2},
+                "team": {"id": 33, "name": "Man Utd", "logo": "https://logo2.png"},
+                "player": {"id": 444, "name": "Maguire"},
+                "assist": {"id": None, "name": None},
+                "type": "subst",
+                "detail": "Substitution 1",
+            },
+        ]
+    }
+    with patch("services.football_api.httpx.Client") as mock_client_cls:
+        mock_client = mock_client_cls.return_value.__enter__.return_value
+        mock_client.get.return_value = mock_response(sample)
+        result = football_api.get_fixture_events(1234)
+
+    assert len(result) == 3
+    assert result[0]["minute"] == 23
+    assert result[0]["type"] == "Goal"
+    assert result[0]["player_name"] == "Rashford"
+    assert result[0]["assist_name"] == "Bruno"
+    assert result[1]["minute"] == 45
+    assert result[1]["extra_minute"] == 2
+    assert result[2]["minute"] == 67
+    assert result[2]["type"] == "Card"
+    assert result[2]["assist_name"] is None
+
+
+def test_get_fixture_events_handles_empty():
+    sample = {"response": []}
+    with patch("services.football_api.httpx.Client") as mock_client_cls:
+        mock_client = mock_client_cls.return_value.__enter__.return_value
+        mock_client.get.return_value = mock_response(sample)
+        result = football_api.get_fixture_events(9999)
+    assert result == []
