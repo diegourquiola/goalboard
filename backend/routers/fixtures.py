@@ -1,5 +1,10 @@
 from fastapi import APIRouter, HTTPException
-from services.football_api import get_h2h, get_fixture_lineups
+from services.football_api import (
+    get_h2h,
+    get_fixture_lineups,
+    get_fixture_statistics,
+    get_fixture_events,
+)
 
 router = APIRouter()
 
@@ -18,5 +23,23 @@ def fixture_lineups(fixture_id: int):
     """Return starting XIs for a fixture."""
     try:
         return get_fixture_lineups(fixture_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/fixtures/{fixture_id}/statistics")
+def fixture_statistics(fixture_id: int):
+    """Return full match statistics for a fixture (both teams)."""
+    try:
+        return get_fixture_statistics(fixture_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/fixtures/{fixture_id}/events")
+def fixture_events(fixture_id: int):
+    """Return match events (goals, cards, substitutions) sorted by minute."""
+    try:
+        return get_fixture_events(fixture_id)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
