@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, RefreshControl, Image,
-  StyleSheet, Modal, FlatList, ActivityIndicator,
+  StyleSheet, Modal, FlatList, ActivityIndicator, TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -151,6 +151,10 @@ export default function TeamsScreen() {
   const [refreshing, setRefreshing]     = useState(false);
   const [nextFixture, setNextFixture]   = useState(null);
   const [loadingNext, setLoadingNext]   = useState(false);
+  const [teamQuery, setTeamQuery]       = useState('');
+  const [teamResults, setTeamResults]   = useState([]);
+  const [searching, setSearching]       = useState(false);
+  const searchDebounce = useRef(null);
 
   const fetchStandings = useCallback(async (code) => {
     setLoading(true);
@@ -173,6 +177,24 @@ export default function TeamsScreen() {
   }, []);
 
   useEffect(() => { fetchStandings(league); }, [league]);
+
+  const handleTeamSearch = useCallback((text) => {
+    setTeamQuery(text);
+    setTeamResults([]);
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    if (text.length < 2) return;
+    searchDebounce.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const { data } = await api.get('/api/teams/search', { params: { q: text } });
+        setTeamResults(Array.isArray(data) ? data : []);
+      } catch {
+        setTeamResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
+  }, []);
 
   // Fetch next fixture whenever selected team changes
   useEffect(() => {
@@ -272,6 +294,56 @@ export default function TeamsScreen() {
           })}
         </ScrollView>
       </View>
+
+      {/* Team search bar */}
+      <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Ionicons name="search" size={16} color={colors.mutedForeground} style={{ marginRight: 8 }} />
+        <TextInput
+          value={teamQuery}
+          onChangeText={handleTeamSearch}
+          placeholder="Search any team..."
+          placeholderTextColor={colors.mutedForeground}
+          style={[styles.searchInput, { color: colors.foreground }]}
+          clearButtonMode="while-editing"
+          returnKeyType="search"
+        />
+        {searching && <ActivityIndicator size="small" color={colors.accent} style={{ marginLeft: 8 }} />}
+      </View>
+
+      {/* Search results overlay */}
+      {teamQuery.length >= 2 && (
+        <View style={[styles.searchResults, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {teamResults.length === 0 && !searching ? (
+            <Text style={[styles.searchEmpty, { color: colors.mutedForeground }]}>No teams found.</Text>
+          ) : teamResults.map(t => (
+            <TouchableOpacity
+              key={t.id}
+              style={[styles.searchResultRow, { borderBottomColor: colors.border }]}
+              activeOpacity={0.7}
+              onPress={() => {
+                hapticSelect();
+                setTeamQuery('');
+                setTeamResults([]);
+                navigation.push('TeamDetail', {
+                  team: { team_id: t.id, team_name: t.name, team_logo: t.logo },
+                  leagueCode: league,
+                });
+              }}
+            >
+              <View style={[styles.searchLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                {t.logo
+                  ? <Image source={{ uri: t.logo }} style={styles.searchLogo} resizeMode="contain" />
+                  : <Text style={{ fontSize: 14 }}>⚽</Text>}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.searchTeamName, { color: colors.foreground }]}>{t.name}</Text>
+                {t.country ? <Text style={[styles.searchTeamSub, { color: colors.mutedForeground }]}>{t.country}</Text> : null}
+              </View>
+              <Ionicons name="chevron-forward" size={14} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
       {loading && <LoadingState />}
       {!loading && error && <ErrorState message={error} onRetry={() => fetchStandings(league)} />}
@@ -470,6 +542,15 @@ const styles = StyleSheet.create({
   container:          { flex: 1 },
   leagueBar:          { paddingVertical: 12 },
   leagueBarContent:   { paddingHorizontal: 20, gap: 12 },
+  searchBar:          { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 8, borderRadius: 14, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
+  searchInput:        { flex: 1, fontSize: 14, fontWeight: '500' },
+  searchResults:      { marginHorizontal: 20, marginBottom: 8, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  searchResultRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, gap: 10 },
+  searchLogoWrap:     { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  searchLogo:         { width: 22, height: 22 },
+  searchTeamName:     { fontSize: 14, fontWeight: '700' },
+  searchTeamSub:      { fontSize: 11, fontWeight: '500', marginTop: 1 },
+  searchEmpty:        { fontSize: 13, fontWeight: '600', padding: 14 },
   leagueBtn:          { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, flexShrink: 0 },
   leagueBtnText:      { fontSize: 13, fontWeight: '600' },
   section:            { paddingHorizontal: 20, marginBottom: 20 },

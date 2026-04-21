@@ -209,18 +209,45 @@ def get_leagues() -> dict:
     return _get("/leagues", params={"season": CURRENT_SEASON}, ttl=3600)
 
 
+def _parse_league_item(item: dict) -> dict:
+    league  = item.get("league", {})
+    country = item.get("country", {})
+    return {
+        "id":           league.get("id"),
+        "name":         league.get("name"),
+        "logo":         league.get("logo"),
+        "country":      country.get("name"),
+        "country_flag": country.get("flag"),
+    }
+
+
 def search_leagues(q: str) -> list:
-    raw = _get("/leagues", params={"search": q}, ttl=3600)
+    # Search by league name and by country in parallel, then merge & deduplicate
+    by_name    = _get("/leagues", params={"search": q}, ttl=3600).get("response", [])
+    by_country = _get("/leagues", params={"country": q}, ttl=3600).get("response", [])
+
+    seen = set()
+    results = []
+    for item in by_name + by_country:
+        league_id = item.get("league", {}).get("id")
+        if league_id and league_id not in seen:
+            seen.add(league_id)
+            results.append(_parse_league_item(item))
+    return results
+
+
+def search_teams(q: str) -> list:
+    raw = _get("/teams", params={"search": q}, ttl=300)
     results = []
     for item in raw.get("response", []):
-        league  = item.get("league", {})
-        country = item.get("country", {})
+        team    = item.get("team", {})
+        venue   = item.get("venue", {})
         results.append({
-            "id":           league.get("id"),
-            "name":         league.get("name"),
-            "logo":         league.get("logo"),
-            "country":      country.get("name"),
-            "country_flag": country.get("flag"),
+            "id":      team.get("id"),
+            "name":    team.get("name"),
+            "logo":    team.get("logo"),
+            "country": team.get("country"),
+            "venue":   venue.get("name"),
         })
     return results
 

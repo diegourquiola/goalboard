@@ -46,6 +46,7 @@ Press `i` to open in iOS Simulator, `a` for Android emulator, or scan the QR cod
 | `GET /api/teams/{team_id}/next` | Next scheduled fixture for a team |
 | `GET /api/teams/{team_id}/last-fixtures` | Last N fixtures for a team |
 | `GET /api/teams/{team_id}/season-fixtures` | All season fixtures for a team (past + upcoming) |
+| `GET /api/teams/search?q=NAME` | Search teams by name |
 | `GET /api/teams/{league}/{id}` | Team detail |
 | `GET /api/health` | Health check |
 

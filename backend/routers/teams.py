@@ -1,7 +1,16 @@
 from fastapi import APIRouter, HTTPException, Query
-from services.football_api import get_team, get_team_next_fixture, get_team_last_fixtures, get_team_season_fixtures
+from services.football_api import get_team, get_team_next_fixture, get_team_last_fixtures, get_team_season_fixtures, search_teams
 
 router = APIRouter()
+
+
+@router.get("/teams/search")
+def teams_search(q: str = Query(..., min_length=2)):
+    """Search teams by name."""
+    try:
+        return search_teams(q)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 @router.get("/teams/{team_id}/next")
