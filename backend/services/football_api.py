@@ -1,4 +1,5 @@
 import os
+import datetime
 import httpx
 from dotenv import load_dotenv
 from .cache import TTLCache
@@ -24,7 +25,11 @@ LEAGUE_ID_MAP = {
     "CL": 2,      # Champions League
 }
 
-CURRENT_SEASON = 2025  # 2025-26 season
+def _current_season() -> int:
+    today = datetime.date.today()
+    return today.year if today.month >= 7 else today.year - 1
+
+CURRENT_SEASON = _current_season()
 
 
 def _get(path: str, params: dict | None = None, ttl: int = 300) -> dict:

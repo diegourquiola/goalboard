@@ -424,7 +424,7 @@ export default function TeamsScreen() {
             </View>
           </View>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 80 }} />
         </ScrollView>
       )}
 

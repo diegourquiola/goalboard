@@ -41,6 +41,14 @@ function InlineSpinner({ colors }) {
   return <ActivityIndicator size="small" color={colors.accent} style={{ marginVertical: 16 }} />;
 }
 
+function RetryButton({ onPress, colors }) {
+  return (
+    <TouchableOpacity onPress={onPress} style={[s.retryBtn, { borderColor: colors.border }]}>
+      <Text style={[s.retryText, { color: colors.mutedForeground }]}>Failed to load — tap to retry</Text>
+    </TouchableOpacity>
+  );
+}
+
 function FormBadge({ result, colors }) {
   const bg =
     result === 'W' ? colors.chartGreen :
@@ -104,30 +112,54 @@ export default function MatchDetailScreen({ route }) {
   const [loading, setLoading] = useState({
     standings: true, h2h: true, form: true, lineups: true,
   });
+  const [errors, setErrors] = useState({
+    standings: false, h2h: false, form: false, lineups: false,
+  });
 
-  const fetchAll = useCallback(() => {
-    setLoading({ standings: true, h2h: true, form: true, lineups: true });
-
+  const fetchStandings = useCallback(() => {
+    setLoading(p => ({ ...p, standings: true }));
+    setErrors(p => ({ ...p, standings: false }));
     api.get(`/api/standings/${leagueCode}`)
       .then(r => setStandings(r.data?.stage?.[0]?.standings ?? []))
-      .catch(() => setStandings([]))
+      .catch(() => { setStandings([]); setErrors(p => ({ ...p, standings: true })); })
       .finally(() => setLoading(p => ({ ...p, standings: false })));
+  }, [leagueCode]);
 
+  const fetchH2h = useCallback(() => {
+    setLoading(p => ({ ...p, h2h: true }));
+    setErrors(p => ({ ...p, h2h: false }));
     api.get(`/api/h2h/${homeId}/${awayId}`)
       .then(r => setH2h(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setH2h([]))
+      .catch(() => { setH2h([]); setErrors(p => ({ ...p, h2h: true })); })
       .finally(() => setLoading(p => ({ ...p, h2h: false })));
+  }, [homeId, awayId]);
 
+  const fetchForm = useCallback(() => {
+    setLoading(p => ({ ...p, form: true }));
+    setErrors(p => ({ ...p, form: false }));
     Promise.all([
       api.get(`/api/teams/${homeId}/last-fixtures`).then(r => setHomeForm(Array.isArray(r.data) ? r.data : [])).catch(() => setHomeForm([])),
       api.get(`/api/teams/${awayId}/last-fixtures`).then(r => setAwayForm(Array.isArray(r.data) ? r.data : [])).catch(() => setAwayForm([])),
-    ]).finally(() => setLoading(p => ({ ...p, form: false })));
+    ])
+      .catch(() => setErrors(p => ({ ...p, form: true })))
+      .finally(() => setLoading(p => ({ ...p, form: false })));
+  }, [homeId, awayId]);
 
+  const fetchLineups = useCallback(() => {
+    setLoading(p => ({ ...p, lineups: true }));
+    setErrors(p => ({ ...p, lineups: false }));
     api.get(`/api/fixtures/${fixtureId}/lineups`)
       .then(r => setLineups(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setLineups([]))
+      .catch(() => { setLineups([]); setErrors(p => ({ ...p, lineups: true })); })
       .finally(() => setLoading(p => ({ ...p, lineups: false })));
-  }, [leagueCode, homeId, awayId, fixtureId]);
+  }, [fixtureId]);
+
+  const fetchAll = useCallback(() => {
+    fetchStandings();
+    fetchH2h();
+    fetchForm();
+    fetchLineups();
+  }, [fetchStandings, fetchH2h, fetchForm, fetchLineups]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -245,7 +277,7 @@ export default function MatchDetailScreen({ route }) {
       {/* League Table (both teams only) */}
       <View style={s.section}>
         <SectionTitle label="LEAGUE TABLE" colors={colors} />
-        {loading.standings ? <InlineSpinner colors={colors} /> : (() => {
+        {loading.standings ? <InlineSpinner colors={colors} /> : errors.standings ? <RetryButton onPress={fetchStandings} colors={colors} /> : (() => {
           const teamRows = standings.filter(row => row.team_id === homeId || row.team_id === awayId);
           return (
             <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -293,7 +325,7 @@ export default function MatchDetailScreen({ route }) {
       {/* Head to Head */}
       <View style={s.section}>
         <SectionTitle label="HEAD TO HEAD" colors={colors} />
-        {loading.h2h ? <InlineSpinner colors={colors} /> : h2h.length === 0 ? (
+        {loading.h2h ? <InlineSpinner colors={colors} /> : errors.h2h ? <RetryButton onPress={fetchH2h} colors={colors} /> : h2h.length === 0 ? (
           <Text style={[s.empty, { color: colors.mutedForeground }]}>No previous meetings found.</Text>
         ) : (
           <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -303,8 +335,10 @@ export default function MatchDetailScreen({ route }) {
               const hWin   = m.score?.home != null && m.score.home > m.score.away;
               const aWin   = m.score?.away != null && m.score.away > m.score.home;
               return (
-                <View
+                <TouchableOpacity
                   key={m.id ?? i}
+                  activeOpacity={0.7}
+                  onPress={() => { hapticSelect(); navigation.push('MatchDetail', { match: m, leagueCode }); }}
                   style={[s.h2hRow, { borderBottomColor: colors.border, borderBottomWidth: i === h2h.length - 1 ? 0 : 1 }]}
                 >
                   <Text style={[s.h2hDate, { color: colors.mutedForeground }]}>
@@ -325,7 +359,7 @@ export default function MatchDetailScreen({ route }) {
                   >
                     {m.teams?.away?.name ?? '–'}
                   </Text>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -335,7 +369,7 @@ export default function MatchDetailScreen({ route }) {
       {/* Recent Form */}
       <View style={s.section}>
         <SectionTitle label="RECENT FORM" colors={colors} />
-        {loading.form ? <InlineSpinner colors={colors} /> : (
+        {loading.form ? <InlineSpinner colors={colors} /> : errors.form ? <RetryButton onPress={fetchForm} colors={colors} /> : (
           <View style={[s.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={s.formRow}>
               <Text style={[s.formTeamLabel, { color: colors.foreground }]} numberOfLines={1}>
@@ -365,7 +399,7 @@ export default function MatchDetailScreen({ route }) {
       {/* Lineups */}
       <View style={s.section}>
         <SectionTitle label="LINEUPS" colors={colors} />
-        {loading.lineups ? <InlineSpinner colors={colors} /> : (!homeLineup && !awayLineup) ? (
+        {loading.lineups ? <InlineSpinner colors={colors} /> : errors.lineups ? <RetryButton onPress={fetchLineups} colors={colors} /> : (!homeLineup && !awayLineup) ? (
           <Text style={[s.empty, { color: colors.mutedForeground }]}>Lineups not yet available.</Text>
         ) : (
           <>
@@ -497,6 +531,9 @@ const s = StyleSheet.create({
   formBadgeText:{ color: '#fff', fontSize: 10, fontWeight: '800' },
   formNone:     { fontSize: 12, fontWeight: '600' },
   formDivider:  { height: 1, marginHorizontal: 16 },
+
+  retryBtn:           { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
+  retryText:          { fontSize: 13, fontWeight: '600' },
 
   lineupSection:      { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
   lineupHeader:       { flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, gap: 10 },

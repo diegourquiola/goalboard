@@ -165,7 +165,7 @@ export default function StandingsScreen() {
               <Text style={[styles.empty, { color: colors.mutedForeground }]}>No standings data available.</Text>
             )}
           </View>
-          <View style={{ height: 40 }} />
+          <View style={{ height: 80 }} />
         </ScrollView>
       )}
     </View>

@@ -83,6 +83,17 @@ export default function AllMatchesView({ leagueCode }) {
 
   useEffect(() => { fetchMatches(); }, [leagueCode]);
 
+  // Auto-poll every 60s when there are live matches
+  useEffect(() => {
+    const hasLive = raw.some(m => {
+      const st = (m.status ?? '').toLowerCase();
+      return st === 'live' || st === 'in_play';
+    });
+    if (!hasLive) return;
+    const id = setInterval(fetchMatches, 60_000);
+    return () => clearInterval(id);
+  }, [raw, fetchMatches]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchMatches();
@@ -257,7 +268,7 @@ export default function AllMatchesView({ leagueCode }) {
 
 const styles = StyleSheet.create({
   center:         { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list:           { paddingBottom: 40 },
+  list:           { paddingBottom: 80 },
 
   dateHeader:     { height: HEADER_H, justifyContent: 'center', paddingHorizontal: 16, borderBottomWidth: 1 },
   dateHeaderText: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },

@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   filterTab:        { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
   filterTabText:    { fontSize: 12, fontWeight: '700' },
 
-  list:             { paddingHorizontal: 20, paddingBottom: 40 },
+  list:             { paddingHorizontal: 20, paddingBottom: 80 },
   group:            { marginBottom: 24 },
   groupTitle:       { fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 12 },
 
