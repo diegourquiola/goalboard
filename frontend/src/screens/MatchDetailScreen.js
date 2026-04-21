@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, Image, ScrollView, StyleSheet, ActivityIndicator, RefreshControl,
-  TouchableOpacity,
+  TouchableOpacity, useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
@@ -10,6 +10,31 @@ import { BlurView } from 'expo-blur';
 import PitchFormation from '../components/PitchFormation';
 import api from '../services/api';
 import { hapticSelect, hapticSuccess } from '../utils/haptics';
+import { TabView } from 'react-native-tab-view';
+
+const ROUTES = [
+  { key: 'details', title: 'DETAILS' },
+  { key: 'stats',   title: 'STATS'   },
+  { key: 'lineups', title: 'LINEUPS' },
+];
+
+const STAT_LABELS = [
+  'Shots on Goal',
+  'Shots off Goal',
+  'Total Shots',
+  'Blocked Shots',
+  'Shots insidebox',
+  'Shots outsidebox',
+  'Fouls',
+  'Corner Kicks',
+  'Offsides',
+  'Ball Possession',
+  'Yellow Cards',
+  'Red Cards',
+  'Goalkeeper Saves',
+  'Passes accurate',
+  'Passes %',
+];
 
 function formatDateTime(dateStr) {
   if (!dateStr) return '';
@@ -82,38 +107,83 @@ function StatBar({ label, home, away, colors, isDark }) {
   );
 }
 
+function EventRow({ event, colors, isDark, isLast }) {
+  const { type, detail } = event;
+  let icon;
+  if (type === 'Goal')       icon = detail === 'Own Goal' ? '🔴⚽' : '⚽';
+  else if (type === 'Card')  icon = detail === 'Yellow Card' ? '🟨' : '🟥';
+  else if (type === 'subst') icon = '↕';
+  else                       return null;
+
+  const minuteStr = event.extra_minute
+    ? `${event.minute}+${event.extra_minute}'`
+    : `${event.minute ?? '?'}'`;
+
+  return (
+    <View style={[
+      s.eventRow,
+      { borderBottomColor: colors.border, borderBottomWidth: isLast ? 0 : 1 },
+    ]}>
+      <Text style={[s.eventMinute, { color: colors.mutedForeground }]}>{minuteStr}</Text>
+      <Text style={s.eventIcon}>{icon}</Text>
+      <View style={s.eventInfo}>
+        <Text style={[s.eventPlayer, { color: colors.foreground }]} numberOfLines={1}>
+          {event.player_name}
+        </Text>
+        {(type === 'Goal' || type === 'subst') && event.assist_name ? (
+          <Text style={[s.eventAssist, { color: colors.mutedForeground }]} numberOfLines={1}>
+            {type === 'Goal' ? '↳' : '↓'} {event.assist_name}
+          </Text>
+        ) : null}
+      </View>
+      {event.team_logo ? (
+        <View style={[s.eventLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+          <Image source={{ uri: event.team_logo }} style={s.eventTeamLogo} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export default function MatchDetailScreen({ route }) {
   const { match, leagueCode } = route.params;
   const { colors, isDark } = useTheme();
   const navigation = useNavigation();
   const leagueLabel = LEAGUES.find(l => l.code === leagueCode)?.label ?? '';
+  const layout = useWindowDimensions();
 
   const homeId    = match.teams?.home?.id;
   const awayId    = match.teams?.away?.id;
   const fixtureId = match.id;
 
-  const navigateToTeam = (teamObj, standingsRow) => {
+  const navigateToTeam = useCallback((teamObj, standingsRow) => {
     hapticSelect();
     const team = standingsRow ?? {
-      team_id: teamObj.id,
+      team_id:   teamObj.id,
       team_name: teamObj.name,
       team_logo: teamObj.logo,
     };
     navigation.push('TeamDetail', { team, leagueCode, leagueLabel });
-  };
+  }, [navigation, leagueCode, leagueLabel]);
 
-  const [standings, setStandings] = useState([]);
-  const [h2h,       setH2h]       = useState([]);
-  const [homeForm,  setHomeForm]  = useState([]);
-  const [awayForm,  setAwayForm]  = useState([]);
-  const [lineups,   setLineups]   = useState(null);
+  const [standings,  setStandings]  = useState([]);
+  const [h2h,        setH2h]        = useState([]);
+  const [homeForm,   setHomeForm]   = useState([]);
+  const [awayForm,   setAwayForm]   = useState([]);
+  const [lineups,    setLineups]    = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab,  setActiveTab]  = useState(0);
+  const [events,     setEvents]     = useState([]);
+  const [matchStats, setMatchStats] = useState(null);
+  const statsFetched = useRef(false);
 
   const [loading, setLoading] = useState({
     standings: true, h2h: true, form: true, lineups: true,
+    events: true, stats: false,
   });
   const [errors, setErrors] = useState({
     standings: false, h2h: false, form: false, lineups: false,
+    events: false, stats: false,
   });
 
   const fetchStandings = useCallback(() => {
@@ -154,14 +224,53 @@ export default function MatchDetailScreen({ route }) {
       .finally(() => setLoading(p => ({ ...p, lineups: false })));
   }, [fixtureId]);
 
+  const fetchEvents = useCallback(() => {
+    setLoading(p => ({ ...p, events: true }));
+    setErrors(p => ({ ...p, events: false }));
+    api.get(`/api/fixtures/${fixtureId}/events`)
+      .then(r => setEvents(Array.isArray(r.data) ? r.data : []))
+      .catch(() => { setEvents([]); setErrors(p => ({ ...p, events: true })); })
+      .finally(() => setLoading(p => ({ ...p, events: false })));
+  }, [fixtureId]);
+
+  const fetchStats = useCallback(() => {
+    setLoading(p => ({ ...p, stats: true }));
+    setErrors(p => ({ ...p, stats: false }));
+    api.get(`/api/fixtures/${fixtureId}/statistics`)
+      .then(r => setMatchStats(Array.isArray(r.data) && r.data.length > 0 ? r.data : null))
+      .catch(() => { setMatchStats(null); setErrors(p => ({ ...p, stats: true })); })
+      .finally(() => setLoading(p => ({ ...p, stats: false })));
+  }, [fixtureId]);
+
   const fetchAll = useCallback(() => {
     fetchStandings();
     fetchH2h();
     fetchForm();
     fetchLineups();
-  }, [fetchStandings, fetchH2h, fetchForm, fetchLineups]);
+    fetchEvents();
+  }, [fetchStandings, fetchH2h, fetchForm, fetchLineups, fetchEvents]);
+
+  const handleTabChange = useCallback((index) => {
+    setActiveTab(index);
+    if (index === 1 && !statsFetched.current) {
+      statsFetched.current = true;
+      fetchStats();
+    }
+  }, [fetchStats]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const isFinished = (match.status ?? '').toLowerCase() === 'finished';
+  const isLive     = (match.status ?? '').toLowerCase() === 'live';
+
+  useEffect(() => {
+    if (!isLive) return;
+    const id = setInterval(() => {
+      fetchEvents();
+      if (statsFetched.current) fetchStats();
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [isLive, fetchEvents, fetchStats]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -169,23 +278,289 @@ export default function MatchDetailScreen({ route }) {
     setTimeout(() => { setRefreshing(false); hapticSuccess(); }, 1500);
   }, [fetchAll]);
 
-  const isFinished = (match.status ?? '').toLowerCase() === 'finished';
-  const isLive     = (match.status ?? '').toLowerCase() === 'live';
-  const stats      = match.stats;
-  const hasStats   = stats && Object.keys(stats).length > 0;
-
   const homeFormBadges = homeForm.slice(0, 5).map(f => getResultFromFixture(f, homeId)).filter(Boolean);
   const awayFormBadges = awayForm.slice(0, 5).map(f => getResultFromFixture(f, awayId)).filter(Boolean);
 
   const homeLineup = lineups?.find(l => l.team_id === homeId) ?? null;
   const awayLineup = lineups?.find(l => l.team_id === awayId) ?? null;
 
+  const renderScene = useCallback(({ route: r }) => {
+    if (r.key === 'details') {
+      const teamRows = standings.filter(row => row.team_id === homeId || row.team_id === awayId);
+      return (
+        <ScrollView
+          style={{ flex: 1, backgroundColor: colors.background }}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+          }
+        >
+          {/* Events */}
+          <View style={s.section}>
+            <SectionTitle label="EVENTS" colors={colors} />
+            {loading.events ? <InlineSpinner colors={colors} /> :
+             errors.events  ? <RetryButton onPress={fetchEvents} colors={colors} /> :
+             events.length === 0 ? (
+               <Text style={[s.empty, { color: colors.mutedForeground }]}>No events yet.</Text>
+             ) : (
+               <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                 {events.map((ev, i) => (
+                   <EventRow
+                     key={`${ev.minute}-${ev.type}-${i}`}
+                     event={ev}
+                     colors={colors}
+                     isDark={isDark}
+                     isLast={i === events.length - 1}
+                   />
+                 ))}
+               </View>
+             )}
+          </View>
+
+          {/* Head to Head */}
+          <View style={s.section}>
+            <SectionTitle label="HEAD TO HEAD" colors={colors} />
+            {loading.h2h ? <InlineSpinner colors={colors} /> :
+             errors.h2h   ? <RetryButton onPress={fetchH2h} colors={colors} /> :
+             h2h.length === 0 ? (
+               <Text style={[s.empty, { color: colors.mutedForeground }]}>No previous meetings found.</Text>
+             ) : (
+               <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                 {h2h.map((m, i) => {
+                   const hScore = m.score?.home ?? '–';
+                   const aScore = m.score?.away ?? '–';
+                   const hWin   = m.score?.home != null && m.score.home > m.score.away;
+                   const aWin   = m.score?.away != null && m.score.away > m.score.home;
+                   return (
+                     <TouchableOpacity
+                       key={m.id ?? i}
+                       activeOpacity={0.7}
+                       onPress={() => { hapticSelect(); navigation.push('MatchDetail', { match: m, leagueCode }); }}
+                       style={[s.h2hRow, { borderBottomColor: colors.border, borderBottomWidth: i === h2h.length - 1 ? 0 : 1 }]}
+                     >
+                       <Text style={[s.h2hDate, { color: colors.mutedForeground }]}>
+                         {m.date ? new Date(m.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '–'}
+                       </Text>
+                       <Text style={[s.h2hTeam, { color: hWin ? colors.foreground : colors.mutedForeground, fontWeight: hWin ? '800' : '500' }]} numberOfLines={1}>
+                         {m.teams?.home?.name ?? '–'}
+                       </Text>
+                       <Text style={[s.h2hScore, { color: colors.foreground }]}>{hScore} – {aScore}</Text>
+                       <Text style={[s.h2hTeam, { color: aWin ? colors.foreground : colors.mutedForeground, fontWeight: aWin ? '800' : '500', textAlign: 'right' }]} numberOfLines={1}>
+                         {m.teams?.away?.name ?? '–'}
+                       </Text>
+                     </TouchableOpacity>
+                   );
+                 })}
+               </View>
+             )}
+          </View>
+
+          {/* Recent Form */}
+          <View style={s.section}>
+            <SectionTitle label="RECENT FORM" colors={colors} />
+            {loading.form ? <InlineSpinner colors={colors} /> :
+             errors.form   ? <RetryButton onPress={fetchForm} colors={colors} /> : (
+               <View style={[s.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                 <View style={s.formRow}>
+                   <Text style={[s.formTeamLabel, { color: colors.foreground }]} numberOfLines={1}>
+                     {match.teams?.home?.name}
+                   </Text>
+                   <View style={s.formBadges}>
+                     {homeFormBadges.length > 0
+                       ? homeFormBadges.map((res, i) => <FormBadge key={i} result={res} colors={colors} />)
+                       : <Text style={[s.formNone, { color: colors.mutedForeground }]}>No data</Text>}
+                   </View>
+                 </View>
+                 <View style={[s.formDivider, { backgroundColor: colors.border }]} />
+                 <View style={s.formRow}>
+                   <Text style={[s.formTeamLabel, { color: colors.foreground }]} numberOfLines={1}>
+                     {match.teams?.away?.name}
+                   </Text>
+                   <View style={s.formBadges}>
+                     {awayFormBadges.length > 0
+                       ? awayFormBadges.map((res, i) => <FormBadge key={i} result={res} colors={colors} />)
+                       : <Text style={[s.formNone, { color: colors.mutedForeground }]}>No data</Text>}
+                   </View>
+                 </View>
+               </View>
+             )}
+          </View>
+
+          {/* League Table */}
+          <View style={s.section}>
+            <SectionTitle label="LEAGUE TABLE" colors={colors} />
+            {loading.standings ? <InlineSpinner colors={colors} /> :
+             errors.standings  ? <RetryButton onPress={fetchStandings} colors={colors} /> : (
+               <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                 {teamRows.length === 0 ? (
+                   <Text style={[s.empty, { color: colors.mutedForeground }]}>No standings data.</Text>
+                 ) : teamRows.map((row, i) => (
+                   <TouchableOpacity
+                     key={row.team_name ?? i}
+                     activeOpacity={0.7}
+                     onPress={() => navigateToTeam({ id: row.team_id, name: row.team_name, logo: row.team_logo }, row)}
+                     style={[s.tableRow, {
+                       backgroundColor: colors.accent + '1A',
+                       borderBottomColor: colors.border,
+                       borderBottomWidth: i === teamRows.length - 1 ? 0 : 1,
+                     }]}
+                   >
+                     <Text style={[s.tablePos, { color: colors.accent }]}>{row.position}</Text>
+                     <View style={[s.tableLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                       {row.team_logo
+                         ? <Image source={{ uri: row.team_logo }} style={s.tableTeamLogo} />
+                         : <Text style={{ fontSize: 8 }}>⚽</Text>}
+                     </View>
+                     <Text style={[s.tableTeam, { color: colors.accent }]} numberOfLines={1}>{row.team_name}</Text>
+                     <Text style={[s.tableCell, { color: colors.mutedForeground }]}>{row.games_played}</Text>
+                     <Text style={[s.tableCell, { color: colors.mutedForeground }]}>
+                       {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
+                     </Text>
+                     <Text style={[s.tablePts, { color: colors.accent }]}>{row.points}</Text>
+                   </TouchableOpacity>
+                 ))}
+               </View>
+             )}
+          </View>
+        </ScrollView>
+      );
+    }
+
+    if (r.key === 'stats') {
+      const homeData = matchStats?.find(t => t.team_id === match.teams?.home?.id);
+      const awayData = matchStats?.find(t => t.team_id === match.teams?.away?.id);
+      return (
+        <ScrollView
+          style={{ flex: 1, backgroundColor: colors.background }}
+          contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+        >
+          {loading.stats ? <InlineSpinner colors={colors} /> :
+           errors.stats   ? <RetryButton onPress={fetchStats} colors={colors} /> :
+           !matchStats    ? (
+             <Text style={[s.empty, { color: colors.mutedForeground }]}>
+               Match stats will be available once the game begins.
+             </Text>
+           ) : (
+             <View style={[s.statsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+               {STAT_LABELS.map(label => {
+                 const home = homeData?.stats?.[label] ?? 0;
+                 const away = awayData?.stats?.[label] ?? 0;
+                 if (home === 0 && away === 0) return null;
+                 const displayLabel = label === 'Passes %' ? 'PASS ACCURACY %' : label.toUpperCase();
+                 return (
+                   <StatBar
+                     key={label}
+                     label={displayLabel}
+                     home={home}
+                     away={away}
+                     colors={colors}
+                     isDark={isDark}
+                   />
+                 );
+               })}
+             </View>
+           )}
+        </ScrollView>
+      );
+    }
+
+    if (r.key === 'lineups') {
+      return (
+        <ScrollView
+          style={{ flex: 1, backgroundColor: colors.background }}
+          contentContainerStyle={{ paddingBottom: 40 }}
+        >
+          <View style={s.section}>
+            <SectionTitle label="LINEUPS" colors={colors} />
+            {loading.lineups ? <InlineSpinner colors={colors} /> :
+             errors.lineups  ? <RetryButton onPress={fetchLineups} colors={colors} /> :
+             (!homeLineup && !awayLineup) ? (
+               <Text style={[s.empty, { color: colors.mutedForeground }]}>Lineups not yet available.</Text>
+             ) : (
+               <>
+                 {[homeLineup, awayLineup].filter(Boolean).map((lineup) => (
+                   <PitchFormation
+                     key={`pitch-${lineup.team_id}`}
+                     players={lineup.players ?? []}
+                     formation={lineup.formation}
+                     teamName={lineup.team_name}
+                     isDark={isDark}
+                     onPlayerPress={(p) => {
+                       hapticSelect();
+                       navigation.push('PlayerDetail', {
+                         playerId: p.id, playerName: p.name, playerPhoto: p.photo,
+                       });
+                     }}
+                   />
+                 ))}
+                 {[homeLineup, awayLineup].filter(Boolean).map((lineup) => (
+                   (lineup.substitutes ?? []).length > 0 && (
+                     <View key={`subs-${lineup.team_id}`} style={[s.lineupSection, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 16 }]}>
+                       <View style={[s.lineupHeader, { borderBottomColor: colors.border }]}>
+                         <View style={[s.lineupLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                           {lineup.team_logo
+                             ? <Image source={{ uri: lineup.team_logo }} style={s.lineupTeamLogo} />
+                             : <Text style={{ fontSize: 12 }}>⚽</Text>}
+                         </View>
+                         <Text style={[s.lineupTeamName, { color: colors.foreground }]} numberOfLines={1}>
+                           {lineup.team_name}
+                         </Text>
+                         <Text style={[s.lineupSubtitleText, { color: colors.mutedForeground }]}>SUBSTITUTES</Text>
+                       </View>
+                       {lineup.substitutes.map((p, i) => {
+                         const player = typeof p === 'string' ? { name: p } : p;
+                         return (
+                           <TouchableOpacity
+                             key={player.id ?? `sub-${i}`}
+                             activeOpacity={0.7}
+                             onPress={() => {
+                               hapticSelect();
+                               player.id && navigation.push('PlayerDetail', {
+                                 playerId: player.id, playerName: player.name, playerPhoto: player.photo,
+                               });
+                             }}
+                             style={[s.playerRow, {
+                               borderBottomWidth: i === lineup.substitutes.length - 1 ? 0 : 1,
+                               borderBottomColor: colors.border,
+                               backgroundColor: i % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)'),
+                             }]}
+                           >
+                             <Text style={[s.playerNum, { color: colors.mutedForeground }]}>{player.number ?? '–'}</Text>
+                             <View style={[s.playerPhotoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                               {player.photo
+                                 ? <Image source={{ uri: player.photo }} style={s.playerPhoto} />
+                                 : <View style={s.playerPhotoPlaceholder} />}
+                             </View>
+                             <Text style={[s.playerName, { color: colors.foreground }]} numberOfLines={1}>{player.name}</Text>
+                             {player.pos && (
+                               <Text style={[s.playerPos, { color: colors.mutedForeground }]}>{player.pos}</Text>
+                             )}
+                           </TouchableOpacity>
+                         );
+                       })}
+                     </View>
+                   )
+                 ))}
+               </>
+             )}
+          </View>
+        </ScrollView>
+      );
+    }
+
+    return null;
+  }, [
+    colors, isDark, loading, errors, events, h2h, homeFormBadges, awayFormBadges,
+    standings, homeId, awayId, match, leagueCode, refreshing,
+    fetchEvents, fetchH2h, fetchForm, fetchStandings,
+    matchStats, homeLineup, awayLineup, fetchStats, fetchLineups,
+    navigation, navigateToTeam, onRefresh,
+  ]);
+
   return (
-    <ScrollView
-      style={[s.container, { backgroundColor: colors.background }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
-    >
-      {/* Match Header */}
+    <View style={[s.container, { backgroundColor: colors.background }]}>
+
+      {/* Pinned Match Header */}
       <BlurView
         tint={isDark ? 'systemThinMaterialDark' : 'systemThinMaterialLight'}
         intensity={60}
@@ -250,232 +625,37 @@ export default function MatchDetailScreen({ route }) {
         ) : null}
       </BlurView>
 
-      {/* Match Stats */}
-      {hasStats && (
-        <View style={s.section}>
-          <SectionTitle label="MATCH STATS" colors={colors} />
-          <View style={[s.statsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {stats.possession_home != null && (
-              <StatBar label="POSSESSION" home={stats.possession_home} away={stats.possession_away} colors={colors} isDark={isDark} />
-            )}
-            {stats.shots_home != null && (
-              <StatBar label="SHOTS ON TARGET" home={stats.shots_home} away={stats.shots_away} colors={colors} isDark={isDark} />
-            )}
-            {stats.corners_home != null && (
-              <StatBar label="CORNERS" home={stats.corners_home} away={stats.corners_away} colors={colors} isDark={isDark} />
-            )}
-            {stats.passes_home != null && (
-              <StatBar label="PASSES" home={stats.passes_home} away={stats.passes_away} colors={colors} isDark={isDark} />
-            )}
-            {stats.fouls_home != null && (
-              <StatBar label="FOULS" home={stats.fouls_home} away={stats.fouls_away} colors={colors} isDark={isDark} />
-            )}
-          </View>
-        </View>
-      )}
-
-      {/* League Table (both teams only) */}
-      <View style={s.section}>
-        <SectionTitle label="LEAGUE TABLE" colors={colors} />
-        {loading.standings ? <InlineSpinner colors={colors} /> : errors.standings ? <RetryButton onPress={fetchStandings} colors={colors} /> : (() => {
-          const teamRows = standings.filter(row => row.team_id === homeId || row.team_id === awayId);
-          return (
-            <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              {teamRows.length === 0 ? (
-                <Text style={[s.empty, { color: colors.mutedForeground }]}>No standings data.</Text>
-              ) : teamRows.map((row, i) => (
-                <TouchableOpacity
-                  key={row.team_name ?? i}
-                  activeOpacity={0.7}
-                  onPress={() => navigateToTeam({ id: row.team_id, name: row.team_name, logo: row.team_logo }, row)}
-                  style={[
-                    s.tableRow,
-                    {
-                      backgroundColor: colors.accent + '1A',
-                      borderBottomColor: colors.border,
-                      borderBottomWidth: i === teamRows.length - 1 ? 0 : 1,
-                    },
-                  ]}
-                >
-                  <Text style={[s.tablePos, { color: colors.accent }]}>
-                    {row.position}
-                  </Text>
-                  <View style={[s.tableLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
-                    {row.team_logo
-                      ? <Image source={{ uri: row.team_logo }} style={s.tableTeamLogo} />
-                      : <Text style={{ fontSize: 8 }}>⚽</Text>}
-                  </View>
-                  <Text style={[s.tableTeam, { color: colors.accent }]} numberOfLines={1}>
-                    {row.team_name}
-                  </Text>
-                  <Text style={[s.tableCell, { color: colors.mutedForeground }]}>{row.games_played}</Text>
-                  <Text style={[s.tableCell, { color: colors.mutedForeground }]}>
-                    {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
-                  </Text>
-                  <Text style={[s.tablePts, { color: colors.accent }]}>
-                    {row.points}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          );
-        })()}
+      {/* Custom Tab Bar */}
+      <View style={[s.tabBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {ROUTES.map((route, i) => (
+          <TouchableOpacity
+            key={route.key}
+            style={[s.tabBtn, activeTab === i && { backgroundColor: colors.accent }]}
+            onPress={() => { hapticSelect(); handleTabChange(i); }}
+            activeOpacity={0.8}
+          >
+            <Text style={[s.tabBtnText, { color: activeTab === i ? '#fff' : colors.mutedForeground }]}>
+              {route.title}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {/* Head to Head */}
-      <View style={s.section}>
-        <SectionTitle label="HEAD TO HEAD" colors={colors} />
-        {loading.h2h ? <InlineSpinner colors={colors} /> : errors.h2h ? <RetryButton onPress={fetchH2h} colors={colors} /> : h2h.length === 0 ? (
-          <Text style={[s.empty, { color: colors.mutedForeground }]}>No previous meetings found.</Text>
-        ) : (
-          <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {h2h.map((m, i) => {
-              const hScore = m.score?.home ?? '–';
-              const aScore = m.score?.away ?? '–';
-              const hWin   = m.score?.home != null && m.score.home > m.score.away;
-              const aWin   = m.score?.away != null && m.score.away > m.score.home;
-              return (
-                <TouchableOpacity
-                  key={m.id ?? i}
-                  activeOpacity={0.7}
-                  onPress={() => { hapticSelect(); navigation.push('MatchDetail', { match: m, leagueCode }); }}
-                  style={[s.h2hRow, { borderBottomColor: colors.border, borderBottomWidth: i === h2h.length - 1 ? 0 : 1 }]}
-                >
-                  <Text style={[s.h2hDate, { color: colors.mutedForeground }]}>
-                    {m.date ? new Date(m.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '–'}
-                  </Text>
-                  <Text
-                    style={[s.h2hTeam, { color: hWin ? colors.foreground : colors.mutedForeground, fontWeight: hWin ? '800' : '500' }]}
-                    numberOfLines={1}
-                  >
-                    {m.teams?.home?.name ?? '–'}
-                  </Text>
-                  <Text style={[s.h2hScore, { color: colors.foreground }]}>
-                    {hScore} – {aScore}
-                  </Text>
-                  <Text
-                    style={[s.h2hTeam, { color: aWin ? colors.foreground : colors.mutedForeground, fontWeight: aWin ? '800' : '500', textAlign: 'right' }]}
-                    numberOfLines={1}
-                  >
-                    {m.teams?.away?.name ?? '–'}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+      {/* Swipeable Tab Pages */}
+      <TabView
+        navigationState={{ index: activeTab, routes: ROUTES }}
+        renderScene={renderScene}
+        onIndexChange={handleTabChange}
+        renderTabBar={() => null}
+        initialLayout={{ width: layout.width }}
+        lazy
+        renderLazyPlaceholder={() => (
+          <View style={{ flex: 1, alignItems: 'center', paddingTop: 40 }}>
+            <ActivityIndicator color={colors.accent} />
           </View>
         )}
-      </View>
-
-      {/* Recent Form */}
-      <View style={s.section}>
-        <SectionTitle label="RECENT FORM" colors={colors} />
-        {loading.form ? <InlineSpinner colors={colors} /> : errors.form ? <RetryButton onPress={fetchForm} colors={colors} /> : (
-          <View style={[s.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={s.formRow}>
-              <Text style={[s.formTeamLabel, { color: colors.foreground }]} numberOfLines={1}>
-                {match.teams?.home?.name}
-              </Text>
-              <View style={s.formBadges}>
-                {homeFormBadges.length > 0
-                  ? homeFormBadges.map((r, i) => <FormBadge key={i} result={r} colors={colors} />)
-                  : <Text style={[s.formNone, { color: colors.mutedForeground }]}>No data</Text>}
-              </View>
-            </View>
-            <View style={[s.formDivider, { backgroundColor: colors.border }]} />
-            <View style={s.formRow}>
-              <Text style={[s.formTeamLabel, { color: colors.foreground }]} numberOfLines={1}>
-                {match.teams?.away?.name}
-              </Text>
-              <View style={s.formBadges}>
-                {awayFormBadges.length > 0
-                  ? awayFormBadges.map((r, i) => <FormBadge key={i} result={r} colors={colors} />)
-                  : <Text style={[s.formNone, { color: colors.mutedForeground }]}>No data</Text>}
-              </View>
-            </View>
-          </View>
-        )}
-      </View>
-
-      {/* Lineups */}
-      <View style={s.section}>
-        <SectionTitle label="LINEUPS" colors={colors} />
-        {loading.lineups ? <InlineSpinner colors={colors} /> : errors.lineups ? <RetryButton onPress={fetchLineups} colors={colors} /> : (!homeLineup && !awayLineup) ? (
-          <Text style={[s.empty, { color: colors.mutedForeground }]}>Lineups not yet available.</Text>
-        ) : (
-          <>
-            {/* Pitch formation visuals */}
-            {[homeLineup, awayLineup].filter(Boolean).map((lineup) => (
-              <PitchFormation
-                key={`pitch-${lineup.team_id}`}
-                players={lineup.players ?? []}
-                formation={lineup.formation}
-                teamName={lineup.team_name}
-                isDark={isDark}
-                onPlayerPress={(p) => { hapticSelect(); navigation.push('PlayerDetail', {
-                  playerId: p.id, playerName: p.name, playerPhoto: p.photo,
-                }); }}
-              />
-            ))}
-
-            {/* Substitutes only (starting XI shown on pitch above) */}
-            {[homeLineup, awayLineup].filter(Boolean).map((lineup) => (
-              (lineup.substitutes ?? []).length > 0 && (
-                <View key={`subs-${lineup.team_id}`} style={[s.lineupSection, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 16 }]}>
-                  <View style={[s.lineupHeader, { borderBottomColor: colors.border }]}>
-                    <View style={[s.lineupLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
-                      {lineup.team_logo
-                        ? <Image source={{ uri: lineup.team_logo }} style={s.lineupTeamLogo} />
-                        : <Text style={{ fontSize: 12 }}>⚽</Text>}
-                    </View>
-                    <Text style={[s.lineupTeamName, { color: colors.foreground }]} numberOfLines={1}>
-                      {lineup.team_name}
-                    </Text>
-                    <Text style={[s.lineupSubtitleText, { color: colors.mutedForeground }]}>SUBSTITUTES</Text>
-                  </View>
-                  {lineup.substitutes.map((p, i) => {
-                    const player = typeof p === 'string' ? { name: p } : p;
-                    return (
-                      <TouchableOpacity
-                        key={player.id ?? `sub-${i}`}
-                        activeOpacity={0.7}
-                        onPress={() => { hapticSelect(); player.id && navigation.push('PlayerDetail', {
-                          playerId: player.id, playerName: player.name, playerPhoto: player.photo,
-                        }); }}
-                        style={[
-                          s.playerRow,
-                          {
-                            borderBottomWidth: i === lineup.substitutes.length - 1 ? 0 : 1,
-                            borderBottomColor: colors.border,
-                            backgroundColor: i % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)'),
-                          },
-                        ]}
-                      >
-                        <Text style={[s.playerNum, { color: colors.mutedForeground }]}>
-                          {player.number ?? '–'}
-                        </Text>
-                        <View style={[s.playerPhotoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
-                          {player.photo
-                            ? <Image source={{ uri: player.photo }} style={s.playerPhoto} />
-                            : <View style={s.playerPhotoPlaceholder} />}
-                        </View>
-                        <Text style={[s.playerName, { color: colors.foreground }]} numberOfLines={1}>
-                          {player.name}
-                        </Text>
-                        {player.pos && (
-                          <Text style={[s.playerPos, { color: colors.mutedForeground }]}>{player.pos}</Text>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )
-            ))}
-          </>
-        )}
-      </View>
-
-      <View style={{ height: 40 }} />
-    </ScrollView>
+      />
+    </View>
   );
 }
 
@@ -499,6 +679,10 @@ const s = StyleSheet.create({
   liveLabel:    { fontSize: 10, fontWeight: '800', marginTop: 4 },
   venue:        { fontSize: 12, fontWeight: '600', textAlign: 'center', marginBottom: 4 },
   kickoff:      { fontSize: 12, fontWeight: '600', textAlign: 'center' },
+
+  tabBar:        { flexDirection: 'row', marginHorizontal: 20, marginBottom: 8, borderRadius: 14, padding: 4, borderWidth: 1 },
+  tabBtn:        { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center' },
+  tabBtnText:    { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
 
   // match stats
   statsCard:    { borderRadius: 20, borderWidth: 1, padding: 16, gap: 16 },
@@ -534,6 +718,15 @@ const s = StyleSheet.create({
 
   retryBtn:           { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
   retryText:          { fontSize: 13, fontWeight: '600' },
+
+  eventRow:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 },
+  eventMinute:   { width: 44, fontSize: 11, fontWeight: '700' },
+  eventIcon:     { fontSize: 14, width: 28, textAlign: 'center' },
+  eventInfo:     { flex: 1, paddingHorizontal: 6 },
+  eventPlayer:   { fontSize: 13, fontWeight: '600' },
+  eventAssist:   { fontSize: 11, fontWeight: '500', marginTop: 2 },
+  eventLogoWrap: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  eventTeamLogo: { width: 16, height: 16 },
 
   lineupSection:      { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
   lineupHeader:       { flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, gap: 10 },
