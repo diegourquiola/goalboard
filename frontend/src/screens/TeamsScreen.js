@@ -271,6 +271,21 @@ export default function TeamsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Team search bar */}
+      <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Ionicons name="search" size={16} color={colors.mutedForeground} style={{ marginRight: 8 }} />
+        <TextInput
+          value={teamQuery}
+          onChangeText={handleTeamSearch}
+          placeholder="Search any team..."
+          placeholderTextColor={colors.mutedForeground}
+          style={[styles.searchInput, { color: colors.foreground }]}
+          clearButtonMode="while-editing"
+          returnKeyType="search"
+        />
+        {searching && <ActivityIndicator size="small" color={colors.accent} style={{ marginLeft: 8 }} />}
+      </View>
+
       {/* League selector */}
       <View style={styles.leagueBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.leagueBarContent}>
@@ -293,21 +308,6 @@ export default function TeamsScreen() {
             );
           })}
         </ScrollView>
-      </View>
-
-      {/* Team search bar */}
-      <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Ionicons name="search" size={16} color={colors.mutedForeground} style={{ marginRight: 8 }} />
-        <TextInput
-          value={teamQuery}
-          onChangeText={handleTeamSearch}
-          placeholder="Search any team..."
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.searchInput, { color: colors.foreground }]}
-          clearButtonMode="while-editing"
-          returnKeyType="search"
-        />
-        {searching && <ActivityIndicator size="small" color={colors.accent} style={{ marginLeft: 8 }} />}
       </View>
 
       {/* Search results overlay */}
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
   container:          { flex: 1 },
   leagueBar:          { paddingVertical: 12 },
   leagueBarContent:   { paddingHorizontal: 20, gap: 12 },
-  searchBar:          { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 8, borderRadius: 14, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
+  searchBar:          { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginTop: 12, marginBottom: 4, borderRadius: 14, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
   searchInput:        { flex: 1, fontSize: 14, fontWeight: '500' },
   searchResults:      { marginHorizontal: 20, marginBottom: 8, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
   searchResultRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, gap: 10 },
