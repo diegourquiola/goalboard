@@ -107,7 +107,7 @@ function StatBar({ label, home, away, colors, isDark }) {
   );
 }
 
-function EventRow({ event, colors, isDark, isLast }) {
+function EventRow({ event, colors, homeId }) {
   const { type, detail } = event;
   let icon;
   if (type === 'Goal')       icon = detail === 'Own Goal' ? '🔴⚽' : '⚽';
@@ -115,32 +115,49 @@ function EventRow({ event, colors, isDark, isLast }) {
   else if (type === 'subst') icon = '↕';
   else                       return null;
 
+  const isHome = event.team_id === homeId;
+
   const minuteStr = event.extra_minute
     ? `${event.minute}+${event.extra_minute}'`
     : `${event.minute ?? '?'}'`;
 
   return (
-    <View style={[
-      s.eventRow,
-      { borderBottomColor: colors.border, borderBottomWidth: isLast ? 0 : 1 },
-    ]}>
-      <Text style={[s.eventMinute, { color: colors.mutedForeground }]}>{minuteStr}</Text>
-      <Text style={s.eventIcon}>{icon}</Text>
-      <View style={s.eventInfo}>
-        <Text style={[s.eventPlayer, { color: colors.foreground }]} numberOfLines={1}>
-          {event.player_name}
-        </Text>
-        {(type === 'Goal' || type === 'subst') && event.assist_name ? (
-          <Text style={[s.eventAssist, { color: colors.mutedForeground }]} numberOfLines={1}>
-            {type === 'Goal' ? '↳' : '↓'} {event.assist_name}
-          </Text>
-        ) : null}
+    <View style={s.eventRow}>
+      <View style={s.eventSide}>
+        {isHome && (
+          <View style={s.eventHomeContent}>
+            <Text style={s.eventIcon}>{icon}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.eventPlayer, { color: colors.foreground }]} numberOfLines={1}>
+                {event.player_name}
+              </Text>
+              {(type === 'Goal' || type === 'subst') && event.assist_name ? (
+                <Text style={[s.eventAssist, { color: colors.mutedForeground }]} numberOfLines={1}>
+                  ↳ {event.assist_name}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        )}
       </View>
-      {event.team_logo ? (
-        <View style={[s.eventLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
-          <Image source={{ uri: event.team_logo }} style={s.eventTeamLogo} />
-        </View>
-      ) : null}
+      <Text style={[s.eventMinute, { color: colors.mutedForeground }]}>{minuteStr}</Text>
+      <View style={s.eventSide}>
+        {!isHome && (
+          <View style={s.eventAwayContent}>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.eventPlayer, { color: colors.foreground, textAlign: 'right' }]} numberOfLines={1}>
+                {event.player_name}
+              </Text>
+              {(type === 'Goal' || type === 'subst') && event.assist_name ? (
+                <Text style={[s.eventAssist, { color: colors.mutedForeground, textAlign: 'right' }]} numberOfLines={1}>
+                  {event.assist_name} ↲
+                </Text>
+              ) : null}
+            </View>
+            <Text style={s.eventIcon}>{icon}</Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -304,13 +321,12 @@ export default function MatchDetailScreen({ route }) {
                <Text style={[s.empty, { color: colors.mutedForeground }]}>No events yet.</Text>
              ) : (
                <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                 {events.map((ev, i) => (
+                 {[...events].reverse().map((ev, i) => (
                    <EventRow
                      key={`${ev.minute}-${ev.type}-${i}`}
                      event={ev}
                      colors={colors}
-                     isDark={isDark}
-                     isLast={i === events.length - 1}
+                     homeId={homeId}
                    />
                  ))}
                </View>
@@ -719,14 +735,14 @@ const s = StyleSheet.create({
   retryBtn:           { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
   retryText:          { fontSize: 13, fontWeight: '600' },
 
-  eventRow:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 },
-  eventMinute:   { width: 44, fontSize: 11, fontWeight: '700' },
-  eventIcon:     { fontSize: 14, width: 28, textAlign: 'center' },
-  eventInfo:     { flex: 1, paddingHorizontal: 6 },
-  eventPlayer:   { fontSize: 13, fontWeight: '600' },
-  eventAssist:   { fontSize: 11, fontWeight: '500', marginTop: 2 },
-  eventLogoWrap: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  eventTeamLogo: { width: 16, height: 16 },
+  eventRow:         { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12 },
+  eventSide:        { flex: 1 },
+  eventHomeContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  eventAwayContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
+  eventMinute:      { width: 52, fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  eventIcon:        { fontSize: 14 },
+  eventPlayer:      { fontSize: 13, fontWeight: '600' },
+  eventAssist:      { fontSize: 11, fontWeight: '500', marginTop: 2 },
 
   lineupSection:      { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
   lineupHeader:       { flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, gap: 10 },
