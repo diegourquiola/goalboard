@@ -9,7 +9,8 @@ import api from '../services/api';
 import { LEAGUES } from '../constants/leagues';
 import { hapticSelect } from '../utils/haptics';
 
-export default function LeaguesListScreen({ onSelect }) {
+export default function LeaguesListScreen({ navigation }) {
+  const onSelect = (league) => navigation.navigate('LeagueDetail', { league });
   const { colors, isDark } = useTheme();
   const [query, setQuery]         = useState('');
   const [results, setResults]     = useState([]);

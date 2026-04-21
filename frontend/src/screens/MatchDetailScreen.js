@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, Image, ScrollView, StyleSheet, ActivityIndicator, RefreshControl,
   TouchableOpacity, useWindowDimensions,
@@ -301,6 +301,18 @@ export default function MatchDetailScreen({ route }) {
   const homeLineup = lineups?.find(l => l.team_id === homeId) ?? null;
   const awayLineup = lineups?.find(l => l.team_id === awayId) ?? null;
 
+  const subbedOutIds = useMemo(() => {
+    const s = new Set();
+    events.filter(e => e.type === 'subst').forEach(e => { if (e.player_id) s.add(e.player_id); });
+    return s;
+  }, [events]);
+
+  const subbedInIds = useMemo(() => {
+    const s = new Set();
+    events.filter(e => e.type === 'subst').forEach(e => { if (e.assist_id) s.add(e.assist_id); });
+    return s;
+  }, [events]);
+
   const renderScene = useCallback(({ route: r }) => {
     if (r.key === 'details') {
       const teamRows = standings.filter(row => row.team_id === homeId || row.team_id === awayId);
@@ -502,6 +514,7 @@ export default function MatchDetailScreen({ route }) {
                      formation={lineup.formation}
                      teamName={lineup.team_name}
                      isDark={isDark}
+                     subbedOutIds={subbedOutIds}
                      onPlayerPress={(p) => {
                        hapticSelect();
                        navigation.push('PlayerDetail', {
@@ -549,6 +562,9 @@ export default function MatchDetailScreen({ route }) {
                                  : <View style={s.playerPhotoPlaceholder} />}
                              </View>
                              <Text style={[s.playerName, { color: colors.foreground }]} numberOfLines={1}>{player.name}</Text>
+                             {subbedInIds.has(player.id) && (
+                               <Text style={[s.subIcon, { color: colors.chartGreen }]}>↕</Text>
+                             )}
                              {player.pos && (
                                <Text style={[s.playerPos, { color: colors.mutedForeground }]}>{player.pos}</Text>
                              )}
@@ -571,7 +587,7 @@ export default function MatchDetailScreen({ route }) {
     standings, homeId, awayId, match, leagueCode, refreshing,
     fetchEvents, fetchH2h, fetchForm, fetchStandings,
     matchStats, homeLineup, awayLineup, fetchStats, fetchLineups,
-    navigation, navigateToTeam, onRefresh,
+    navigation, navigateToTeam, onRefresh, subbedOutIds, subbedInIds,
   ]);
 
   return (
@@ -760,5 +776,6 @@ const s = StyleSheet.create({
   playerPhoto:        { width: 24, height: 24, borderRadius: 12 },
   playerPhotoPlaceholder: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(128,128,128,0.15)' },
   playerName:         { flex: 1, fontSize: 13, fontWeight: '600' },
+  subIcon:            { fontSize: 12, fontWeight: '800', marginRight: 6 },
   playerPos:          { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, width: 28, textAlign: 'right' },
 });

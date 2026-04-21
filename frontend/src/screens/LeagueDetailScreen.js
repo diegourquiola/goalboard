@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, Image, ScrollView, FlatList,
-  RefreshControl, StyleSheet, ActivityIndicator,
+  View, Text, TouchableOpacity, Image, ScrollView,
+  RefreshControl, StyleSheet, ActivityIndicator, useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { TabView } from 'react-native-tab-view';
 import api from '../services/api';
 import ErrorState from '../components/ErrorState';
 import AllMatchesView from './AllMatchesView';
@@ -12,7 +13,11 @@ import { useTheme } from '../theme/ThemeContext';
 import { LEAGUES, LEAGUE_ZONES } from '../constants/leagues';
 import { hapticSelect, hapticLight, hapticSuccess } from '../utils/haptics';
 
-const TABS = ['Standings', 'Matches', 'Top Scorers'];
+const TABS_ROUTES = [
+  { key: 'standings',  title: 'STANDINGS'   },
+  { key: 'matches',    title: 'MATCHES'     },
+  { key: 'topscorers', title: 'TOP SCORERS' },
+];
 
 function StandingsView({ leagueCode }) {
   const { colors, isDark } = useTheme();
@@ -109,32 +114,52 @@ function StandingsView({ leagueCode }) {
   );
 }
 
-export default function LeagueDetailScreen({ league }) {
+export default function LeagueDetailScreen({ route }) {
+  const league = route.params.league;
   const { colors } = useTheme();
-  const [activeTab, setActiveTab] = useState('Matches');
+  const [activeTab, setActiveTab] = useState(0);
+  const layout = useWindowDimensions();
+
+  const renderScene = useCallback(({ route: r }) => {
+    if (r.key === 'standings')  return <StandingsView leagueCode={league.code} />;
+    if (r.key === 'matches')    return <AllMatchesView leagueCode={league.code} />;
+    if (r.key === 'topscorers') return <TopScorersView leagueCode={league.code} />;
+    return null;
+  }, [league.code]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Tab bar */}
       <View style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        {TABS.map(tab => {
-          const active = activeTab === tab;
+        {TABS_ROUTES.map((tab, i) => {
+          const active = activeTab === i;
           return (
             <TouchableOpacity
-              key={tab}
+              key={tab.key}
               style={[styles.tab, active && { borderBottomColor: colors.accent, borderBottomWidth: 2 }]}
-              onPress={() => { hapticLight(); setActiveTab(tab); }}
+              onPress={() => { hapticLight(); setActiveTab(i); }}
             >
               <Text style={[styles.tabText, { color: active ? colors.accent : colors.mutedForeground }]}>
-                {tab.toUpperCase()}
+                {tab.title}
               </Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
-      {activeTab === 'Standings' && <StandingsView leagueCode={league.code} />}
-      {activeTab === 'Matches' && <AllMatchesView leagueCode={league.code} />}
-      {activeTab === 'Top Scorers' && <TopScorersView leagueCode={league.code} />}
+      <TabView
+        navigationState={{ index: activeTab, routes: TABS_ROUTES }}
+        renderScene={renderScene}
+        onIndexChange={setActiveTab}
+        renderTabBar={() => null}
+        initialLayout={{ width: layout.width }}
+        lazy
+        renderLazyPlaceholder={() => (
+          <View style={{ flex: 1, alignItems: 'center', paddingTop: 40 }}>
+            <ActivityIndicator color={colors.accent} />
+          </View>
+        )}
+      />
     </View>
   );
 }

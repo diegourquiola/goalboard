@@ -11,7 +11,7 @@ function getLastName(name) {
   return parts.length > 1 ? parts[parts.length - 1] : name;
 }
 
-export default function PitchFormation({ players, formation, teamName, onPlayerPress, isDark }) {
+export default function PitchFormation({ players, formation, teamName, onPlayerPress, isDark, subbedOutIds = new Set() }) {
   const hasGrid = players.some(p => p.grid);
   if (!hasGrid || players.length === 0) return null;
 
@@ -68,11 +68,18 @@ export default function PitchFormation({ players, formation, teamName, onPlayerP
               activeOpacity={0.7}
               onPress={() => onPlayerPress && p.id && onPlayerPress(p)}
             >
-              <View style={styles.jerseyCircle}>
-                {p.photo ? (
-                  <Image source={{ uri: p.photo }} style={styles.playerImg} />
-                ) : (
-                  <Text style={styles.jerseyNum}>{p.number ?? ''}</Text>
+              <View style={{ position: 'relative' }}>
+                <View style={styles.jerseyCircle}>
+                  {p.photo ? (
+                    <Image source={{ uri: p.photo }} style={styles.playerImg} />
+                  ) : (
+                    <Text style={styles.jerseyNum}>{p.number ?? ''}</Text>
+                  )}
+                </View>
+                {subbedOutIds.has(p.id) && (
+                  <View style={styles.subBadge}>
+                    <Text style={styles.subBadgeText}>↕</Text>
+                  </View>
                 )}
               </View>
               <Text style={styles.playerLabel} numberOfLines={1}>
@@ -193,6 +200,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   playerImg: { width: 32, height: 32, borderRadius: 16 },
+  subBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  subBadgeText: { color: '#fff', fontSize: 7, fontWeight: '900' },
   jerseyNum: { color: '#fff', fontSize: 13, fontWeight: '900' },
   playerLabel: {
     color: '#fff',
