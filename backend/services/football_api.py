@@ -434,6 +434,12 @@ def get_player(player_id: int) -> dict:
     }
 
 
+def get_team_season_fixtures(team_id: int) -> list:
+    raw = _get("/fixtures", params={"team": team_id, "season": CURRENT_SEASON}, ttl=120)
+    fixtures = [_parse_fixture(f) for f in raw.get("response", [])]
+    return sorted(fixtures, key=lambda f: f.get("date") or "")
+
+
 def get_team_next_fixture(team_id: int) -> dict | None:
     raw = _get("/fixtures", params={"team": team_id, "next": 1}, ttl=300)
     fixtures = raw.get("response", [])

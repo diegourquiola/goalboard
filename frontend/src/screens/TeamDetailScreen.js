@@ -225,8 +225,10 @@ export default function TeamDetailScreen({ route, navigation }) {
               const result = getResult(f);
               const resultColor = result === 'W' ? colors.chartGreen : result === 'D' ? colors.mutedForeground : colors.destructive;
               return (
-                <View
+                <TouchableOpacity
                   key={f.id ?? i}
+                  activeOpacity={0.7}
+                  onPress={() => { hapticSelect(); navigation.push('MatchDetail', { match: f, leagueCode }); }}
                   style={[styles.resultRow, { borderBottomColor: colors.border, borderBottomWidth: i === lastFixtures.length - 1 ? 0 : 1 }]}
                 >
                   {result && (
@@ -248,11 +250,20 @@ export default function TeamDetailScreen({ route, navigation }) {
                   <Text style={[styles.resultDate, { color: colors.mutedForeground }]}>
                     {f.date ? new Date(f.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
                   </Text>
-                </View>
+                  <Ionicons name="chevron-forward" size={12} color={colors.mutedForeground} />
+                </TouchableOpacity>
               );
             })}
           </View>
         )}
+        <TouchableOpacity
+          style={[styles.seeAllBtn, { borderColor: colors.border }]}
+          activeOpacity={0.7}
+          onPress={() => { hapticSelect(); navigation.push('TeamFixtures', { teamId, teamName: team.team_name, leagueCode }); }}
+        >
+          <Text style={[styles.seeAllText, { color: colors.mutedForeground }]}>See all season fixtures</Text>
+          <Ionicons name="chevron-forward" size={14} color={colors.mutedForeground} />
+        </TouchableOpacity>
       </View>
 
       {/* Squad */}
@@ -354,6 +365,9 @@ const styles = StyleSheet.create({
   resultTeamText:{ flex: 1, fontSize: 12, fontWeight: '600' },
   resultScore:   { fontSize: 14, fontWeight: '800', minWidth: 40, textAlign: 'center' },
   resultDate:    { fontSize: 10, fontWeight: '600', width: 44 },
+
+  seeAllBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, paddingVertical: 12, borderRadius: 14, borderWidth: 1 },
+  seeAllText:    { fontSize: 13, fontWeight: '600' },
 
   emptyText:     { fontSize: 13, fontWeight: '600' },
 

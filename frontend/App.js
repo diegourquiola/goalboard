@@ -7,11 +7,12 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { hapticLight } from './src/utils/haptics';
 
-import LeaguesTab        from './src/screens/LeaguesTab';
-import TeamsScreen       from './src/screens/TeamsScreen';
-import MatchDetailScreen  from './src/screens/MatchDetailScreen';
-import TeamDetailScreen   from './src/screens/TeamDetailScreen';
-import PlayerDetailScreen from './src/screens/PlayerDetailScreen';
+import LeaguesTab          from './src/screens/LeaguesTab';
+import TeamsScreen         from './src/screens/TeamsScreen';
+import MatchDetailScreen   from './src/screens/MatchDetailScreen';
+import TeamDetailScreen    from './src/screens/TeamDetailScreen';
+import TeamFixturesScreen  from './src/screens/TeamFixturesScreen';
+import PlayerDetailScreen  from './src/screens/PlayerDetailScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 const Tab   = createBottomTabNavigator();
@@ -135,6 +136,18 @@ function AppContent() {
             headerTitleStyle: { fontWeight: '800', fontSize: 16 },
             headerBackTitle:  '',
           }}
+        />
+        <Stack.Screen
+          name="TeamFixtures"
+          component={TeamFixturesScreen}
+          options={({ route }) => ({
+            headerShown: true,
+            title: route.params?.teamName ?? 'Fixtures',
+            headerStyle:      { backgroundColor: colors.background },
+            headerTintColor:  colors.foreground,
+            headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+            headerBackTitle:  '',
+          })}
         />
         <Stack.Screen
           name="PlayerDetail"
