@@ -6,7 +6,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
 import ErrorState from '../components/ErrorState';
+import { BlurView } from 'expo-blur';
 import { useTheme } from '../theme/ThemeContext';
+import { hapticSuccess } from '../utils/haptics';
 
 function InfoChip({ label, value, colors }) {
   if (!value) return null;
@@ -55,7 +57,7 @@ export default function PlayerDetailScreen({ route }) {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchPlayer();
+    fetchPlayer().then(() => hapticSuccess());
   }, [fetchPlayer]);
 
   const photo = player?.photo ?? playerPhoto;
@@ -83,7 +85,11 @@ export default function PlayerDetailScreen({ route }) {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
     >
       {/* Header */}
-      <View style={[styles.headerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <BlurView
+        tint={isDark ? 'systemThinMaterialDark' : 'systemThinMaterialLight'}
+        intensity={60}
+        style={[styles.headerCard, { borderColor: colors.border, overflow: 'hidden' }]}
+      >
         <View style={[styles.photoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
           {photo
             ? <Image source={{ uri: photo }} style={styles.photo} />
@@ -126,7 +132,7 @@ export default function PlayerDetailScreen({ route }) {
             {player.birth.country ? `, ${player.birth.country}` : ''}
           </Text>
         )}
-      </View>
+      </BlurView>
 
       {/* Season Statistics */}
       {(player.statistics ?? []).length === 0 ? (

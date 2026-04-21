@@ -4,6 +4,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { hapticLight } from './src/utils/haptics';
 
 import LeaguesTab        from './src/screens/LeaguesTab';
 import TeamsScreen       from './src/screens/TeamsScreen';
@@ -39,7 +41,7 @@ function MainTabs() {
         ) : undefined,
         headerRight: route.name === 'Teams' ? () => (
           <TouchableOpacity
-            onPress={toggle}
+            onPress={() => { hapticLight(); toggle(); }}
             style={[styles.iconBtn, {
               backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
             }]}
@@ -64,8 +66,15 @@ function MainTabs() {
         tabBarActiveTintColor:   colors.accent,
         tabBarInactiveTintColor: colors.mutedForeground,
         tabBarLabelStyle:  { fontSize: 10, fontWeight: '600', marginBottom: 5 },
+        tabBarBackground: () => (
+          <BlurView
+            tint={isDark ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight'}
+            intensity={80}
+            style={StyleSheet.absoluteFill}
+          />
+        ),
         tabBarStyle: {
-          backgroundColor: colors.card,
+          position: 'absolute',
           borderTopColor:  colors.border,
           height: 64,
           paddingBottom: 8,

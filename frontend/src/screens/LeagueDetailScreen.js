@@ -10,6 +10,7 @@ import AllMatchesView from './AllMatchesView';
 import TopScorersView from './TopScorersView';
 import { useTheme } from '../theme/ThemeContext';
 import { LEAGUES, LEAGUE_ZONES } from '../constants/leagues';
+import { hapticSelect, hapticLight, hapticSuccess } from '../utils/haptics';
 
 const TABS = ['Standings', 'Matches', 'Top Scorers'];
 
@@ -37,7 +38,7 @@ function StandingsView({ leagueCode }) {
 
   useEffect(() => { fetchData(); }, [leagueCode]);
 
-  const onRefresh = useCallback(async () => { setRefreshing(true); await fetchData(); }, [fetchData]);
+  const onRefresh = useCallback(async () => { setRefreshing(true); await fetchData(); hapticSuccess(); }, [fetchData]);
 
   const zones = LEAGUE_ZONES[leagueCode] ?? { clSpots: 4, relegationStart: 18 };
 
@@ -70,7 +71,7 @@ function StandingsView({ leagueCode }) {
             <TouchableOpacity
               key={row.team_name ?? index}
               activeOpacity={0.7}
-              onPress={() => navigation.navigate('TeamDetail', { team: row, leagueCode, leagueLabel })}
+              onPress={() => { hapticSelect(); navigation.navigate('TeamDetail', { team: row, leagueCode, leagueLabel }); }}
               style={[
                 s.row,
                 {
@@ -121,7 +122,7 @@ export default function LeagueDetailScreen({ league }) {
             <TouchableOpacity
               key={tab}
               style={[styles.tab, active && { borderBottomColor: colors.accent, borderBottomWidth: 2 }]}
-              onPress={() => setActiveTab(tab)}
+              onPress={() => { hapticLight(); setActiveTab(tab); }}
             >
               <Text style={[styles.tabText, { color: active ? colors.accent : colors.mutedForeground }]}>
                 {tab.toUpperCase()}

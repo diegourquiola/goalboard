@@ -9,6 +9,7 @@ import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import { useTheme } from '../theme/ThemeContext';
 import { LEAGUES, LEAGUE_ZONES } from '../constants/leagues';
+import { hapticSelect, hapticSuccess } from '../utils/haptics';
 
 export default function StandingsScreen() {
   const { colors, isDark } = useTheme();
@@ -41,6 +42,7 @@ export default function StandingsScreen() {
     setRefreshing(true);
     await fetchStandings(league);
     setRefreshing(false);
+    hapticSuccess();
   }, [league, fetchStandings]);
 
   const zones = LEAGUE_ZONES[league] ?? { clSpots: 4, relegationStart: 18 };
@@ -58,7 +60,7 @@ export default function StandingsScreen() {
       <TouchableOpacity
         key={row.team_name ?? index}
         activeOpacity={0.7}
-        onPress={() => navigation.navigate('TeamDetail', { team: row, leagueCode: league, leagueLabel })}
+        onPress={() => { hapticSelect(); navigation.navigate('TeamDetail', { team: row, leagueCode: league, leagueLabel }); }}
         style={[
           styles.row,
           {

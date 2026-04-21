@@ -5,7 +5,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
+import { BlurView } from 'expo-blur';
 import { useTheme } from '../theme/ThemeContext';
+import { hapticSelect, hapticSuccess } from '../utils/haptics';
 
 function formatFixtureDate(dateStr) {
   if (!dateStr) return '';
@@ -83,7 +85,7 @@ export default function TeamDetailScreen({ route, navigation }) {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchData();
-    setTimeout(() => setRefreshing(false), 1500);
+    setTimeout(() => { setRefreshing(false); hapticSuccess(); }, 1500);
   }, [fetchData]);
 
   const gp = team.games_played || 0;
@@ -123,7 +125,11 @@ export default function TeamDetailScreen({ route, navigation }) {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
     >
       {/* Header */}
-      <View style={[styles.headerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <BlurView
+        tint={isDark ? 'systemThinMaterialDark' : 'systemThinMaterialLight'}
+        intensity={60}
+        style={[styles.headerCard, { borderColor: colors.border, overflow: 'hidden' }]}
+      >
         <View style={[styles.logoCircle, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
           {team.team_logo
             ? <Image source={{ uri: team.team_logo }} style={styles.headerLogo} />
@@ -140,7 +146,7 @@ export default function TeamDetailScreen({ route, navigation }) {
             <Text style={[styles.leagueName, { color: colors.mutedForeground }]}>{leagueLabel}</Text>
           )}
         </View>
-      </View>
+      </BlurView>
 
       {/* Season Stats */}
       {gp > 0 && (
@@ -167,7 +173,7 @@ export default function TeamDetailScreen({ route, navigation }) {
         ) : nextFixture ? (
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => navigation.navigate('MatchDetail', { match: nextFixture, leagueCode })}
+            onPress={() => { hapticSelect(); navigation.navigate('MatchDetail', { match: nextFixture, leagueCode }); }}
             style={[styles.fixtureCard, { backgroundColor: colors.card, borderColor: colors.border }]}
           >
             <View style={styles.fixtureRow}>
@@ -269,9 +275,9 @@ export default function TeamDetailScreen({ route, navigation }) {
                   <TouchableOpacity
                     key={p.id ?? i}
                     activeOpacity={0.7}
-                    onPress={() => p.id && navigation.push('PlayerDetail', {
+                    onPress={() => { hapticSelect(); p.id && navigation.push('PlayerDetail', {
                       playerId: p.id, playerName: p.name, playerPhoto: p.photo,
-                    })}
+                    }); }}
                     style={[
                       styles.playerRow,
                       {

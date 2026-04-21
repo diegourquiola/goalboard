@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import api from '../services/api';
 import ErrorState from '../components/ErrorState';
 import { useTheme } from '../theme/ThemeContext';
+import { hapticSelect, hapticSuccess } from '../utils/haptics';
 
 const HEADER_H = 38;
 const MATCH_H  = 60;
@@ -85,6 +86,7 @@ export default function AllMatchesView({ leagueCode }) {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchMatches();
+    hapticSuccess();
   }, [fetchMatches]);
 
   const { items, initialScrollIndex } = useMemo(() => {
@@ -164,7 +166,7 @@ export default function AllMatchesView({ leagueCode }) {
           { borderBottomColor: colors.border, backgroundColor: isLive ? 'rgba(239,68,68,0.06)' : colors.background },
         ]}
         activeOpacity={0.7}
-        onPress={() => navigation.navigate('MatchDetail', { match: m, leagueCode })}
+        onPress={() => { hapticSelect(); navigation.navigate('MatchDetail', { match: m, leagueCode }); }}
       >
         <View style={styles.statusCol}>
           {isLive ? (

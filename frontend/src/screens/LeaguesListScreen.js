@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import api from '../services/api';
 import { LEAGUES } from '../constants/leagues';
+import { hapticSelect } from '../utils/haptics';
 
 export default function LeaguesListScreen({ onSelect }) {
   const { colors, isDark } = useTheme();
@@ -64,7 +65,7 @@ export default function LeaguesListScreen({ onSelect }) {
             <TouchableOpacity
               key={item.id}
               style={[styles.resultRow, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => onSelect({ code: String(item.id), label: item.name, logo: item.logo })}
+              onPress={() => { hapticSelect(); onSelect({ code: String(item.id), label: item.name, logo: item.logo }); }}
             >
               <View style={[styles.resultLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
                 {item.logo
@@ -97,7 +98,7 @@ export default function LeaguesListScreen({ onSelect }) {
             key={league.code}
             style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
             activeOpacity={0.7}
-            onPress={() => onSelect(league)}
+            onPress={() => { hapticSelect(); onSelect(league); }}
           >
             <View style={styles.logoCircle}>
               <Image source={{ uri: league.logo }} style={styles.logo} resizeMode="contain" />

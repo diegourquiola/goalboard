@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import api from '../services/api';
 import ErrorState from '../components/ErrorState';
 import { useTheme } from '../theme/ThemeContext';
+import { hapticSelect } from '../utils/haptics';
 
 export default function TopScorersView({ leagueCode }) {
   const { colors, isDark } = useTheme();
@@ -50,9 +51,9 @@ export default function TopScorersView({ leagueCode }) {
   const renderItem = ({ item, index }) => (
     <TouchableOpacity
       activeOpacity={0.7}
-      onPress={() => item.id && navigation.push('PlayerDetail', {
+      onPress={() => { hapticSelect(); item.id && navigation.push('PlayerDetail', {
         playerId: item.id, playerName: item.name, playerPhoto: item.photo,
-      })}
+      }); }}
       style={[
         styles.row,
         {

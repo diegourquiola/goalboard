@@ -10,6 +10,7 @@ import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import { useTheme } from '../theme/ThemeContext';
 import { LEAGUES } from '../constants/leagues';
+import { hapticSelect, hapticLight, hapticSuccess } from '../utils/haptics';
 
 const CATEGORIES = ['Form', 'Goals Scored', 'Goals Conceded'];
 
@@ -53,7 +54,7 @@ function Sparkline({ points, color, mutedColor }) {
 
 // ── NextGameCard ─────────────────────────────────────────────────────────────
 
-function NextGameCard({ fixture, teamId, colors, isDark }) {
+function NextGameCard({ fixture, teamId, colors, isDark, onPress }) {
   if (!fixture) return null;
 
   const isHome    = fixture.teams?.home?.id === teamId;
@@ -68,7 +69,11 @@ function NextGameCard({ fixture, teamId, colors, isDark }) {
     : 'Date TBD';
 
   return (
-    <View style={[ngStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={onPress}
+      style={[ngStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+    >
       <View style={ngStyles.row}>
         <View style={[ngStyles.logoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
           {opponent?.logo
@@ -89,8 +94,11 @@ function NextGameCard({ fixture, teamId, colors, isDark }) {
           <Text style={[ngStyles.sideText, { color: sideColor }]}>{sideLabel}</Text>
         </View>
       </View>
-      <Text style={[ngStyles.date, { color: colors.mutedForeground }]}>{dateStr}</Text>
-    </View>
+      <View style={ngStyles.footerRow}>
+        <Text style={[ngStyles.date, { color: colors.mutedForeground, flex: 1 }]}>{dateStr}</Text>
+        <Ionicons name="chevron-forward" size={14} color={colors.mutedForeground} />
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -103,6 +111,7 @@ const ngStyles = StyleSheet.create({
   venue:     { fontSize: 11, fontWeight: '500', marginTop: 2 },
   sideBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   sideText:  { fontSize: 11, fontWeight: '800' },
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   date:      { fontSize: 12, fontWeight: '600' },
 });
 
@@ -180,6 +189,7 @@ export default function TeamsScreen() {
     setRefreshing(true);
     await fetchStandings(league);
     setRefreshing(false);
+    hapticSuccess();
   }, [league, fetchStandings]);
 
   const stats = useMemo(() => {
@@ -280,7 +290,7 @@ export default function TeamsScreen() {
           <View style={styles.section}>
             <TouchableOpacity
               style={[styles.selectorCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => setTeamModalVisible(true)}
+              onPress={() => { hapticSelect(); setTeamModalVisible(true); }}
             >
               <View style={styles.selectorInfo}>
                 <View style={[styles.logoWrapper, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
@@ -300,11 +310,11 @@ export default function TeamsScreen() {
             {selectedTeam && (
               <TouchableOpacity
                 style={[styles.detailsBtn, { borderColor: colors.accent }]}
-                onPress={() => navigation.navigate('TeamDetail', {
+                onPress={() => { hapticSelect(); navigation.navigate('TeamDetail', {
                   team: selectedTeam,
                   leagueCode: league,
                   leagueLabel: LEAGUES.find(l => l.code === league)?.label,
-                })}
+                }); }}
               >
                 <Text style={[styles.detailsBtnText, { color: colors.accent }]}>View Full Profile</Text>
                 <Ionicons name="chevron-forward" size={14} color={colors.accent} />
@@ -320,7 +330,16 @@ export default function TeamsScreen() {
             {loadingNext
               ? <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 12 }} />
               : nextFixture
-                ? <NextGameCard fixture={nextFixture} teamId={selectedTeam?.team_id} colors={colors} isDark={isDark} />
+                ? <NextGameCard
+                    fixture={nextFixture}
+                    teamId={selectedTeam?.team_id}
+                    colors={colors}
+                    isDark={isDark}
+                    onPress={() => { hapticSelect(); navigation.navigate('MatchDetail', {
+                      match: nextFixture,
+                      leagueCode: league,
+                    }); }}
+                  />
                 : <Text style={[styles.noNext, { color: colors.mutedForeground }]}>No upcoming fixtures.</Text>
             }
           </View>
@@ -332,7 +351,7 @@ export default function TeamsScreen() {
               return (
                 <TouchableOpacity
                   key={cat}
-                  onPress={() => setActiveCat(cat)}
+                  onPress={() => { hapticLight(); setActiveCat(cat); }}
                   style={[styles.catPill, {
                     backgroundColor: active ? colors.accent : colors.card,
                     borderColor: active ? colors.accent : colors.border,
@@ -428,7 +447,7 @@ export default function TeamsScreen() {
                     borderBottomColor: colors.border,
                     backgroundColor: item.team_name === selectedTeam?.team_name ? colors.accent + '1A' : 'transparent',
                   }]}
-                  onPress={() => { setSelectedTeam(item); setTeamModalVisible(false); }}
+                  onPress={() => { hapticSelect(); setSelectedTeam(item); setTeamModalVisible(false); }}
                 >
                   <View style={[styles.modalLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
                     {item.team_logo

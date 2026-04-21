@@ -6,8 +6,10 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
 import { LEAGUES } from '../constants/leagues';
+import { BlurView } from 'expo-blur';
 import PitchFormation from '../components/PitchFormation';
 import api from '../services/api';
+import { hapticSelect, hapticSuccess } from '../utils/haptics';
 
 function formatDateTime(dateStr) {
   if (!dateStr) return '';
@@ -83,6 +85,7 @@ export default function MatchDetailScreen({ route }) {
   const fixtureId = match.id;
 
   const navigateToTeam = (teamObj, standingsRow) => {
+    hapticSelect();
     const team = standingsRow ?? {
       team_id: teamObj.id,
       team_name: teamObj.name,
@@ -131,7 +134,7 @@ export default function MatchDetailScreen({ route }) {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     fetchAll();
-    setTimeout(() => setRefreshing(false), 1500);
+    setTimeout(() => { setRefreshing(false); hapticSuccess(); }, 1500);
   }, [fetchAll]);
 
   const isFinished = (match.status ?? '').toLowerCase() === 'finished';
@@ -151,7 +154,11 @@ export default function MatchDetailScreen({ route }) {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
     >
       {/* Match Header */}
-      <View style={[s.headerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <BlurView
+        tint={isDark ? 'systemThinMaterialDark' : 'systemThinMaterialLight'}
+        intensity={60}
+        style={[s.headerCard, { borderColor: colors.border, overflow: 'hidden' }]}
+      >
         <View style={s.teamsRow}>
           <TouchableOpacity
             style={s.teamCol}
@@ -209,7 +216,7 @@ export default function MatchDetailScreen({ route }) {
             {formatDateTime(match.date)}
           </Text>
         ) : null}
-      </View>
+      </BlurView>
 
       {/* Match Stats */}
       {hasStats && (
@@ -235,16 +242,16 @@ export default function MatchDetailScreen({ route }) {
         </View>
       )}
 
-      {/* League Table */}
+      {/* League Table (both teams only) */}
       <View style={s.section}>
         <SectionTitle label="LEAGUE TABLE" colors={colors} />
-        {loading.standings ? <InlineSpinner colors={colors} /> : (
-          <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {standings.length === 0 ? (
-              <Text style={[s.empty, { color: colors.mutedForeground }]}>No standings data.</Text>
-            ) : standings.map((row, i) => {
-              const hi = row.team_id === homeId || row.team_id === awayId;
-              return (
+        {loading.standings ? <InlineSpinner colors={colors} /> : (() => {
+          const teamRows = standings.filter(row => row.team_id === homeId || row.team_id === awayId);
+          return (
+            <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              {teamRows.length === 0 ? (
+                <Text style={[s.empty, { color: colors.mutedForeground }]}>No standings data.</Text>
+              ) : teamRows.map((row, i) => (
                 <TouchableOpacity
                   key={row.team_name ?? i}
                   activeOpacity={0.7}
@@ -252,15 +259,13 @@ export default function MatchDetailScreen({ route }) {
                   style={[
                     s.tableRow,
                     {
-                      backgroundColor: hi
-                        ? colors.accent + '1A'
-                        : i % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)'),
+                      backgroundColor: colors.accent + '1A',
                       borderBottomColor: colors.border,
-                      borderBottomWidth: i === standings.length - 1 ? 0 : 1,
+                      borderBottomWidth: i === teamRows.length - 1 ? 0 : 1,
                     },
                   ]}
                 >
-                  <Text style={[s.tablePos, { color: hi ? colors.accent : colors.mutedForeground }]}>
+                  <Text style={[s.tablePos, { color: colors.accent }]}>
                     {row.position}
                   </Text>
                   <View style={[s.tableLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
@@ -268,21 +273,21 @@ export default function MatchDetailScreen({ route }) {
                       ? <Image source={{ uri: row.team_logo }} style={s.tableTeamLogo} />
                       : <Text style={{ fontSize: 8 }}>⚽</Text>}
                   </View>
-                  <Text style={[s.tableTeam, { color: hi ? colors.accent : colors.foreground }]} numberOfLines={1}>
+                  <Text style={[s.tableTeam, { color: colors.accent }]} numberOfLines={1}>
                     {row.team_name}
                   </Text>
                   <Text style={[s.tableCell, { color: colors.mutedForeground }]}>{row.games_played}</Text>
                   <Text style={[s.tableCell, { color: colors.mutedForeground }]}>
                     {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
                   </Text>
-                  <Text style={[s.tablePts, { color: hi ? colors.accent : colors.foreground }]}>
+                  <Text style={[s.tablePts, { color: colors.accent }]}>
                     {row.points}
                   </Text>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
+              ))}
+            </View>
+          );
+        })()}
       </View>
 
       {/* Head to Head */}
@@ -372,113 +377,64 @@ export default function MatchDetailScreen({ route }) {
                 formation={lineup.formation}
                 teamName={lineup.team_name}
                 isDark={isDark}
-                onPlayerPress={(p) => navigation.push('PlayerDetail', {
+                onPlayerPress={(p) => { hapticSelect(); navigation.push('PlayerDetail', {
                   playerId: p.id, playerName: p.name, playerPhoto: p.photo,
-                })}
+                }); }}
               />
             ))}
 
+            {/* Substitutes only (starting XI shown on pitch above) */}
             {[homeLineup, awayLineup].filter(Boolean).map((lineup) => (
-              <View key={lineup.team_id} style={[s.lineupSection, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 16 }]}>
-                <View style={[s.lineupHeader, { borderBottomColor: colors.border }]}>
-                  <View style={[s.lineupLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
-                    {lineup.team_logo
-                      ? <Image source={{ uri: lineup.team_logo }} style={s.lineupTeamLogo} />
-                      : <Text style={{ fontSize: 12 }}>⚽</Text>}
+              (lineup.substitutes ?? []).length > 0 && (
+                <View key={`subs-${lineup.team_id}`} style={[s.lineupSection, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 16 }]}>
+                  <View style={[s.lineupHeader, { borderBottomColor: colors.border }]}>
+                    <View style={[s.lineupLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                      {lineup.team_logo
+                        ? <Image source={{ uri: lineup.team_logo }} style={s.lineupTeamLogo} />
+                        : <Text style={{ fontSize: 12 }}>⚽</Text>}
+                    </View>
+                    <Text style={[s.lineupTeamName, { color: colors.foreground }]} numberOfLines={1}>
+                      {lineup.team_name}
+                    </Text>
+                    <Text style={[s.lineupSubtitleText, { color: colors.mutedForeground }]}>SUBSTITUTES</Text>
                   </View>
-                  <Text style={[s.lineupTeamName, { color: colors.foreground }]} numberOfLines={1}>
-                    {lineup.team_name}
-                  </Text>
-                  {lineup.formation && (
-                    <View style={[s.formationBadge, { backgroundColor: colors.accent + '1A' }]}>
-                      <Text style={[s.formationText, { color: colors.accent }]}>{lineup.formation}</Text>
-                    </View>
-                  )}
+                  {lineup.substitutes.map((p, i) => {
+                    const player = typeof p === 'string' ? { name: p } : p;
+                    return (
+                      <TouchableOpacity
+                        key={player.id ?? `sub-${i}`}
+                        activeOpacity={0.7}
+                        onPress={() => { hapticSelect(); player.id && navigation.push('PlayerDetail', {
+                          playerId: player.id, playerName: player.name, playerPhoto: player.photo,
+                        }); }}
+                        style={[
+                          s.playerRow,
+                          {
+                            borderBottomWidth: i === lineup.substitutes.length - 1 ? 0 : 1,
+                            borderBottomColor: colors.border,
+                            backgroundColor: i % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)'),
+                          },
+                        ]}
+                      >
+                        <Text style={[s.playerNum, { color: colors.mutedForeground }]}>
+                          {player.number ?? '–'}
+                        </Text>
+                        <View style={[s.playerPhotoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                          {player.photo
+                            ? <Image source={{ uri: player.photo }} style={s.playerPhoto} />
+                            : <View style={s.playerPhotoPlaceholder} />}
+                        </View>
+                        <Text style={[s.playerName, { color: colors.foreground }]} numberOfLines={1}>
+                          {player.name}
+                        </Text>
+                        {player.pos && (
+                          <Text style={[s.playerPos, { color: colors.mutedForeground }]}>{player.pos}</Text>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-
-                <View style={s.lineupSubtitle}>
-                  <Text style={[s.lineupSubtitleText, { color: colors.accent }]}>STARTING XI</Text>
-                </View>
-
-                {(lineup.players ?? []).map((p, i) => {
-                  const player = typeof p === 'string' ? { name: p } : p;
-                  return (
-                    <TouchableOpacity
-                      key={player.id ?? i}
-                      activeOpacity={0.7}
-                      onPress={() => player.id && navigation.push('PlayerDetail', {
-                        playerId: player.id, playerName: player.name, playerPhoto: player.photo,
-                      })}
-                      style={[
-                        s.playerRow,
-                        {
-                          borderBottomWidth: 1,
-                          borderBottomColor: colors.border,
-                          backgroundColor: i % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)'),
-                        },
-                      ]}
-                    >
-                      <Text style={[s.playerNum, { color: colors.mutedForeground }]}>
-                        {player.number ?? '–'}
-                      </Text>
-                      <View style={[s.playerPhotoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
-                        {player.photo
-                          ? <Image source={{ uri: player.photo }} style={s.playerPhoto} />
-                          : <View style={s.playerPhotoPlaceholder} />}
-                      </View>
-                      <Text style={[s.playerName, { color: colors.foreground }]} numberOfLines={1}>
-                        {player.name}
-                      </Text>
-                      {player.pos && (
-                        <Text style={[s.playerPos, { color: colors.mutedForeground }]}>{player.pos}</Text>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-
-                {(lineup.substitutes ?? []).length > 0 && (
-                  <>
-                    <View style={[s.lineupSubtitle, { borderTopWidth: 1, borderTopColor: colors.border }]}>
-                      <Text style={[s.lineupSubtitleText, { color: colors.mutedForeground }]}>SUBSTITUTES</Text>
-                    </View>
-                    {lineup.substitutes.map((p, i) => {
-                      const player = typeof p === 'string' ? { name: p } : p;
-                      return (
-                        <TouchableOpacity
-                          key={player.id ?? `sub-${i}`}
-                          activeOpacity={0.7}
-                          onPress={() => player.id && navigation.push('PlayerDetail', {
-                            playerId: player.id, playerName: player.name, playerPhoto: player.photo,
-                          })}
-                          style={[
-                            s.playerRow,
-                            {
-                              borderBottomWidth: i === lineup.substitutes.length - 1 ? 0 : 1,
-                              borderBottomColor: colors.border,
-                              backgroundColor: i % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)'),
-                            },
-                          ]}
-                        >
-                          <Text style={[s.playerNum, { color: colors.mutedForeground }]}>
-                            {player.number ?? '–'}
-                          </Text>
-                          <View style={[s.playerPhotoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
-                            {player.photo
-                              ? <Image source={{ uri: player.photo }} style={s.playerPhoto} />
-                              : <View style={s.playerPhotoPlaceholder} />}
-                          </View>
-                          <Text style={[s.playerName, { color: colors.foreground }]} numberOfLines={1}>
-                            {player.name}
-                          </Text>
-                          {player.pos && (
-                            <Text style={[s.playerPos, { color: colors.mutedForeground }]}>{player.pos}</Text>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </>
-                )}
-              </View>
+              )
             ))}
           </>
         )}

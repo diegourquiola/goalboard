@@ -8,6 +8,7 @@ import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import { useTheme } from '../theme/ThemeContext';
 import { LEAGUES } from '../constants/leagues';
+import { hapticSelect, hapticSuccess } from '../utils/haptics';
 
 const FILTERS = [
   { key: 'all',     label: 'All' },
@@ -108,6 +109,7 @@ export default function MatchesScreen() {
     setRefreshing(true);
     await fetchMatches(league, filter);
     setRefreshing(false);
+    hapticSuccess();
   }, [league, filter, fetchMatches]);
 
   const grouped = useMemo(() => {
@@ -171,7 +173,7 @@ export default function MatchesScreen() {
           },
         ]}
         activeOpacity={0.7}
-        onPress={() => setExpandedId(isExpanded ? null : matchId)}
+        onPress={() => { hapticSelect(); setExpandedId(isExpanded ? null : matchId); }}
       >
         <View style={styles.matchCardHeader}>
           <Text style={[styles.compLabel, { color: colors.mutedForeground }]}>
