@@ -122,7 +122,6 @@ function AppContent() {
             headerStyle:      { backgroundColor: colors.background },
             headerTintColor:  colors.foreground,
             headerTitleStyle: { fontWeight: '800', fontSize: 16 },
-            headerBackTitle:  '',
           }}
         />
         <Stack.Screen
@@ -133,8 +132,7 @@ function AppContent() {
             title: 'Team',
             headerStyle:      { backgroundColor: colors.background },
             headerTintColor:  colors.foreground,
-            headerTitleStyle: { fontWeight: '800', fontSize: 16 },
-            headerBackTitle:  '',
+            headerTitleStyle: { fontWeight: '800', fontSize: 16 }
           }}
         />
         <Stack.Screen
@@ -145,8 +143,7 @@ function AppContent() {
             title: route.params?.teamName ?? 'Fixtures',
             headerStyle:      { backgroundColor: colors.background },
             headerTintColor:  colors.foreground,
-            headerTitleStyle: { fontWeight: '800', fontSize: 16 },
-            headerBackTitle:  '',
+            headerTitleStyle: { fontWeight: '800', fontSize: 16 }
           })}
         />
         <Stack.Screen
@@ -158,7 +155,6 @@ function AppContent() {
             headerStyle:      { backgroundColor: colors.background },
             headerTintColor:  colors.foreground,
             headerTitleStyle: { fontWeight: '800', fontSize: 16 },
-            headerBackTitle:  '',
           }}
         />
       </Stack.Navigator>
