@@ -11,7 +11,13 @@ function getLastName(name) {
   return parts.length > 1 ? parts[parts.length - 1] : name;
 }
 
-export default function PitchFormation({ players, formation, teamName, onPlayerPress, isDark, subbedOutIds = new Set() }) {
+function ratingColor(r) {
+  if (r >= 7.5) return '#22C55E';
+  if (r >= 6.5) return '#F59E0B';
+  return '#EF4444';
+}
+
+export default function PitchFormation({ players, formation, teamName, onPlayerPress, isDark, subbedOutIds = new Set(), ratings = {}, captainIds = new Set() }) {
   const hasGrid = players.some(p => p.grid);
   if (!hasGrid || players.length === 0) return null;
 
@@ -81,10 +87,20 @@ export default function PitchFormation({ players, formation, teamName, onPlayerP
                     <Text style={styles.subBadgeText}>↕</Text>
                   </View>
                 )}
+                {captainIds.has(p.id) && (
+                  <View style={styles.captainBadge}>
+                    <Text style={styles.captainBadgeText}>C</Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.playerLabel} numberOfLines={1}>
                 {p.number != null ? `${p.number}. ` : ''}{getLastName(p.name)}
               </Text>
+              {ratings[p.id] != null && (
+                <View style={[styles.ratingBadge, { backgroundColor: ratingColor(ratings[p.id]) }]}>
+                  <Text style={styles.ratingText}>{ratings[p.id]}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -214,6 +230,20 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
   subBadgeText: { color: '#fff', fontSize: 7, fontWeight: '900' },
+  captainBadge: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#F59E0B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  captainBadgeText: { color: '#fff', fontSize: 7, fontWeight: '900' },
   jerseyNum: { color: '#fff', fontSize: 13, fontWeight: '900' },
   playerLabel: {
     color: '#fff',
@@ -225,5 +255,16 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
     width: 60,
+  },
+  ratingBadge: {
+    marginTop: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  ratingText: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: '900',
   },
 });

@@ -304,6 +304,31 @@ def get_fixture_lineups(fixture_id: int) -> list:
     return result
 
 
+def get_fixture_players(fixture_id: int) -> dict:
+    """Return a map of player_id -> rating and list of captain IDs for a given fixture."""
+    raw = _get("/fixtures/players", params={"fixture": fixture_id}, ttl=600)
+    ratings = {}
+    captains = []
+    for team_data in raw.get("response", []):
+        for entry in team_data.get("players", []):
+            player = entry.get("player", {})
+            pid = player.get("id")
+            stats_list = entry.get("statistics", [])
+            rating = None
+            is_captain = False
+            if stats_list:
+                rating = stats_list[0].get("games", {}).get("rating")
+                is_captain = stats_list[0].get("games", {}).get("captain", False)
+            if pid and rating:
+                try:
+                    ratings[pid] = round(float(rating), 1)
+                except (ValueError, TypeError):
+                    pass
+            if pid and is_captain:
+                captains.append(pid)
+    return {"ratings": ratings, "captains": captains}
+
+
 STAT_KEYS = {
     "Shots on Goal",
     "Shots off Goal",
@@ -552,3 +577,117 @@ def get_team_next_fixture(team_id: int) -> dict | None:
     if not fixtures:
         return None
     return _parse_fixture(fixtures[0])
+
+
+def get_top_assists(league_code: str) -> list:
+    league_id = _get_league_id(league_code)
+    raw = _get(
+        "/players/topassists",
+        params={"league": league_id, "season": CURRENT_SEASON},
+        ttl=300,
+    )
+    result = []
+    for item in raw.get("response", []):
+        player = item.get("player", {})
+        stats_list = item.get("statistics", [])
+        stat = stats_list[0] if stats_list else {}
+        team = stat.get("team", {})
+        goals_info = stat.get("goals", {})
+        result.append({
+            "id": player.get("id"),
+            "name": player.get("name"),
+            "photo": player.get("photo"),
+            "nationality": player.get("nationality"),
+            "team_name": team.get("name"),
+            "team_logo": team.get("logo"),
+            "assists": goals_info.get("assists") or 0,
+            "goals": goals_info.get("total") or 0,
+            "appearances": stat.get("games", {}).get("appearences") or 0,
+        })
+    return result
+
+
+def get_predictions(fixture_id: int) -> dict:
+    raw = _get("/predictions", params={"fixture": fixture_id}, ttl=600)
+    response = raw.get("response", [])
+    if not response:
+        return {}
+    data = response[0]
+    preds = data.get("predictions", {})
+    winner = preds.get("winner", {})
+    return {
+        "winner": {
+            "id": winner.get("id"),
+            "name": winner.get("name"),
+            "comment": winner.get("comment"),
+        },
+        "win_or_draw": preds.get("win_or_draw"),
+        "percent": preds.get("percent", {}),
+        "advice": preds.get("advice"),
+        "goals": preds.get("goals", {}),
+        "comparison": data.get("comparison", {}),
+    }
+
+
+def get_injuries(team_id: int) -> list:
+    raw = _get(
+        "/injuries",
+        params={"team": team_id, "season": CURRENT_SEASON},
+        ttl=600,
+    )
+    result = []
+    for item in raw.get("response", []):
+        player = item.get("player", {})
+        injury_type = player.get("type")
+        if not injury_type:
+            continue
+        result.append({
+            "player_id": player.get("id"),
+            "player_name": player.get("name"),
+            "player_photo": player.get("photo"),
+            "type": injury_type,
+            "reason": player.get("reason"),
+        })
+    return result
+
+
+def get_coaches(team_id: int) -> dict:
+    raw = _get("/coachs", params={"team": team_id}, ttl=3600)
+    response = raw.get("response", [])
+    if not response:
+        return {}
+    coach = response[0]
+    return {
+        "id": coach.get("id"),
+        "name": coach.get("name"),
+        "firstname": coach.get("firstname"),
+        "lastname": coach.get("lastname"),
+        "photo": coach.get("photo"),
+        "nationality": coach.get("nationality"),
+        "age": coach.get("age"),
+    }
+
+
+def get_transfers(team_id: int) -> list:
+    raw = _get("/transfers", params={"team": team_id}, ttl=3600)
+    result = []
+    for item in raw.get("response", []):
+        player = item.get("player", {})
+        for transfer in item.get("transfers", []):
+            teams = transfer.get("teams", {})
+            result.append({
+                "player_id": player.get("id"),
+                "player_name": player.get("name"),
+                "transfer_date": transfer.get("date"),
+                "type": transfer.get("type"),
+                "team_in": {
+                    "name": teams.get("in", {}).get("name"),
+                    "logo": teams.get("in", {}).get("logo"),
+                },
+                "team_out": {
+                    "name": teams.get("out", {}).get("name"),
+                    "logo": teams.get("out", {}).get("logo"),
+                },
+            })
+    result.sort(key=lambda t: t.get("transfer_date") or "", reverse=True)
+    return result[:20]

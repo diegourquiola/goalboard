@@ -192,6 +192,8 @@ export default function MatchDetailScreen({ route }) {
   const [activeTab,  setActiveTab]  = useState(0);
   const [events,     setEvents]     = useState([]);
   const [matchStats, setMatchStats] = useState(null);
+  const [ratings,    setRatings]    = useState({});
+  const [captainIds, setCaptainIds] = useState(new Set());
   const statsFetched = useRef(false);
 
   const [loading, setLoading] = useState({
@@ -241,6 +243,16 @@ export default function MatchDetailScreen({ route }) {
       .finally(() => setLoading(p => ({ ...p, lineups: false })));
   }, [fixtureId]);
 
+  const fetchRatings = useCallback(() => {
+    api.get(`/api/fixtures/${fixtureId}/players`)
+      .then(r => {
+        const data = r.data ?? {};
+        setRatings(data.ratings ?? {});
+        setCaptainIds(new Set(data.captains ?? []));
+      })
+      .catch(() => { setRatings({}); setCaptainIds(new Set()); });
+  }, [fixtureId]);
+
   const fetchEvents = useCallback(() => {
     setLoading(p => ({ ...p, events: true }));
     setErrors(p => ({ ...p, events: false }));
@@ -265,7 +277,8 @@ export default function MatchDetailScreen({ route }) {
     fetchForm();
     fetchLineups();
     fetchEvents();
-  }, [fetchStandings, fetchH2h, fetchForm, fetchLineups, fetchEvents]);
+    fetchRatings();
+  }, [fetchStandings, fetchH2h, fetchForm, fetchLineups, fetchEvents, fetchRatings]);
 
   const handleTabChange = useCallback((index) => {
     setActiveTab(index);
@@ -507,14 +520,16 @@ export default function MatchDetailScreen({ route }) {
                <Text style={[s.empty, { color: colors.mutedForeground }]}>Lineups not yet available.</Text>
              ) : (
                <>
-                 {[homeLineup, awayLineup].filter(Boolean).map((lineup) => (
+                {homeLineup && (
                    <PitchFormation
-                     key={`pitch-${lineup.team_id}`}
-                     players={lineup.players ?? []}
-                     formation={lineup.formation}
-                     teamName={lineup.team_name}
+                     key={`pitch-${homeLineup.team_id}`}
+                     players={homeLineup.players ?? []}
+                     formation={homeLineup.formation}
+                     teamName={homeLineup.team_name}
                      isDark={isDark}
                      subbedOutIds={subbedOutIds}
+                     ratings={ratings}
+                     captainIds={captainIds}
                      onPlayerPress={(p) => {
                        hapticSelect();
                        navigation.push('PlayerDetail', {
@@ -522,7 +537,25 @@ export default function MatchDetailScreen({ route }) {
                        });
                      }}
                    />
-                 ))}
+                 )}
+                {awayLineup && (
+                   <PitchFormation
+                     key={`pitch-${awayLineup.team_id}`}
+                     players={awayLineup.players ?? []}
+                     formation={awayLineup.formation}
+                     teamName={awayLineup.team_name}
+                     isDark={isDark}
+                     subbedOutIds={subbedOutIds}
+                     ratings={ratings}
+                     captainIds={captainIds}
+                     onPlayerPress={(p) => {
+                       hapticSelect();
+                       navigation.push('PlayerDetail', {
+                         playerId: p.id, playerName: p.name, playerPhoto: p.photo,
+                       });
+                     }}
+                   />
+                 )}
                  {[homeLineup, awayLineup].filter(Boolean).map((lineup) => (
                    (lineup.substitutes ?? []).length > 0 && (
                      <View key={`subs-${lineup.team_id}`} style={[s.lineupSection, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 16 }]}>
@@ -561,7 +594,17 @@ export default function MatchDetailScreen({ route }) {
                                  ? <Image source={{ uri: player.photo }} style={s.playerPhoto} />
                                  : <View style={s.playerPhotoPlaceholder} />}
                              </View>
+                             {captainIds.has(player.id) && (
+                               <View style={[s.captainBadge, { backgroundColor: colors.accent + '1A' }]}>
+                                 <Text style={[s.captainText, { color: colors.accent }]}>C</Text>
+                               </View>
+                             )}
                              <Text style={[s.playerName, { color: colors.foreground }]} numberOfLines={1}>{player.name}</Text>
+                             {ratings[player.id] != null && (
+                               <View style={[s.ratingBadge, { backgroundColor: ratings[player.id] >= 7.5 ? '#22C55E' : ratings[player.id] >= 6.5 ? '#F59E0B' : '#EF4444' }]}>
+                                 <Text style={s.ratingText}>{ratings[player.id]}</Text>
+                               </View>
+                             )}
                              {subbedInIds.has(player.id) && (
                                <Text style={[s.subIcon, { color: colors.chartGreen }]}>↕</Text>
                              )}
@@ -574,8 +617,8 @@ export default function MatchDetailScreen({ route }) {
                      </View>
                    )
                  ))}
-               </>
-             )}
+              </>
+            )}
           </View>
         </ScrollView>
       );
@@ -587,7 +630,8 @@ export default function MatchDetailScreen({ route }) {
     standings, homeId, awayId, match, leagueCode, refreshing,
     fetchEvents, fetchH2h, fetchForm, fetchStandings,
     matchStats, homeLineup, awayLineup, fetchStats, fetchLineups,
-    navigation, navigateToTeam, onRefresh, subbedOutIds, subbedInIds,
+    navigation, navigateToTeam, onRefresh, subbedOutIds, subbedInIds, ratings,
+    captainIds,
   ]);
 
   return (
@@ -778,4 +822,10 @@ const s = StyleSheet.create({
   playerName:         { flex: 1, fontSize: 13, fontWeight: '600' },
   subIcon:            { fontSize: 12, fontWeight: '800', marginRight: 6 },
   playerPos:          { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, width: 28, textAlign: 'right' },
+  ratingBadge:        { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginRight: 6 },
+  ratingText:         { color: '#fff', fontSize: 10, fontWeight: '800' },
+
+  captainBadge:  { backgroundColor: '#F59E0B1A', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, marginRight: 4 },
+  captainText:   { fontSize: 10, fontWeight: '900' },
+
 });

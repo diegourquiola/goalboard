@@ -9,6 +9,7 @@ import api from '../services/api';
 import ErrorState from '../components/ErrorState';
 import AllMatchesView from './AllMatchesView';
 import TopScorersView from './TopScorersView';
+import TopAssistsView from './TopAssistsView';
 import { useTheme } from '../theme/ThemeContext';
 import { LEAGUES, LEAGUE_ZONES } from '../constants/leagues';
 import { hapticSelect, hapticLight, hapticSuccess } from '../utils/haptics';
@@ -17,6 +18,7 @@ const TABS_ROUTES = [
   { key: 'standings',  title: 'STANDINGS'   },
   { key: 'matches',    title: 'MATCHES'     },
   { key: 'topscorers', title: 'TOP SCORERS' },
+  { key: 'topassists', title: 'TOP ASSISTS' },
 ];
 
 function StandingsView({ leagueCode }) {
@@ -124,13 +126,19 @@ export default function LeagueDetailScreen({ route }) {
     if (r.key === 'standings')  return <StandingsView leagueCode={league.code} />;
     if (r.key === 'matches')    return <AllMatchesView leagueCode={league.code} />;
     if (r.key === 'topscorers') return <TopScorersView leagueCode={league.code} />;
+    if (r.key === 'topassists') return <TopAssistsView leagueCode={league.code} />;
     return null;
   }, [league.code]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Tab bar */}
-      <View style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
+        contentContainerStyle={styles.tabBarContent}
+      >
         {TABS_ROUTES.map((tab, i) => {
           const active = activeTab === i;
           return (
@@ -145,7 +153,7 @@ export default function LeagueDetailScreen({ route }) {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
 
       <TabView
         navigationState={{ index: activeTab, routes: TABS_ROUTES }}
@@ -165,10 +173,11 @@ export default function LeagueDetailScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  tabBar:    { flexDirection: 'row', borderBottomWidth: 1 },
-  tab:       { flex: 1, paddingVertical: 14, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabText:   { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+  container:     { flex: 1 },
+  tabBar:        { borderBottomWidth: 1, flexGrow: 0 },
+  tabBarContent: { flexDirection: 'row', paddingHorizontal: 4 },
+  tab:           { paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabText:       { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
 });
 
 const s = StyleSheet.create({

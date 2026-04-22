@@ -48,6 +48,10 @@ export default function TeamDetailScreen({ route, navigation }) {
   const [loadingLast, setLoadingLast] = useState(true);
   const [loadingSquad, setLoadingSquad] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [teamInfo, setTeamInfo]   = useState(null);
+  const [transfers, setTransfers] = useState([]);
+  const [loadingTeamInfo, setLoadingTeamInfo] = useState(true);
+  const [loadingTransfers, setLoadingTransfers] = useState(true);
 
   const fetchData = useCallback(() => {
     setLoadingNext(true);
@@ -78,6 +82,22 @@ export default function TeamDetailScreen({ route, navigation }) {
       .then(r => setSquad(Array.isArray(r.data) ? r.data : []))
       .catch(() => setSquad([]))
       .finally(() => setLoadingSquad(false));
+
+    setLoadingTeamInfo(true);
+    setLoadingTransfers(true);
+
+    api.get(`/api/teams/PL/${teamId}`)
+      .then(r => {
+        const venue = r.data?.venue;
+        setTeamInfo(venue ? { venue_name: venue.name, venue_city: venue.city, venue_capacity: venue.capacity, venue_surface: venue.surface } : null);
+      })
+      .catch(() => setTeamInfo(null))
+      .finally(() => setLoadingTeamInfo(false));
+
+    api.get(`/api/teams/${teamId}/transfers`)
+      .then(r => setTransfers(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setTransfers([]))
+      .finally(() => setLoadingTransfers(false));
   }, [teamId, leagueCode, hasStats]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -320,6 +340,79 @@ export default function TeamDetailScreen({ route, navigation }) {
         )}
       </View>
 
+      {/* Venue */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>VENUE</Text>
+        {loadingTeamInfo ? (
+          <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 12 }} />
+        ) : !teamInfo ? (
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No venue data available.</Text>
+        ) : (
+          <View style={[styles.venueCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.venueInfo}>
+              <Text style={[styles.venueName, { color: colors.foreground }]}>{teamInfo.venue_name}</Text>
+              {teamInfo.venue_city && (
+                <Text style={[styles.venueSub, { color: colors.mutedForeground }]}>{teamInfo.venue_city}</Text>
+              )}
+              <View style={styles.venueChips}>
+                {teamInfo.venue_capacity && (
+                  <View style={[styles.venueChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                    <Ionicons name="people" size={12} color={colors.mutedForeground} />
+                    <Text style={[styles.venueChipText, { color: colors.mutedForeground }]}>
+                      {Number(teamInfo.venue_capacity).toLocaleString()}
+                    </Text>
+                  </View>
+                )}
+                {teamInfo.venue_surface && (
+                  <View style={[styles.venueChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                    <Text style={[styles.venueChipText, { color: colors.mutedForeground }]}>{teamInfo.venue_surface}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Recent Transfers */}
+      {transfers.length > 0 && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>RECENT TRANSFERS</Text>
+          <View style={[styles.squadCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {transfers.slice(0, 10).map((t, i) => (
+              <View
+                key={`transfer-${i}`}
+                style={[styles.transferRow, {
+                  borderBottomWidth: i === Math.min(transfers.length, 10) - 1 ? 0 : 1,
+                  borderBottomColor: colors.border,
+                }]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.transferPlayer, { color: colors.foreground }]} numberOfLines={1}>{t.player_name}</Text>
+                  <View style={styles.transferTeams}>
+                    {t.team_out?.logo && <Image source={{ uri: t.team_out.logo }} style={styles.transferLogo} />}
+                    <Text style={[styles.transferTeamText, { color: colors.mutedForeground }]} numberOfLines={1}>{t.team_out?.name ?? '–'}</Text>
+                    <Ionicons name="arrow-forward" size={12} color={colors.mutedForeground} />
+                    {t.team_in?.logo && <Image source={{ uri: t.team_in.logo }} style={styles.transferLogo} />}
+                    <Text style={[styles.transferTeamText, { color: colors.foreground }]} numberOfLines={1}>{t.team_in?.name ?? '–'}</Text>
+                  </View>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  {t.transfer_date && (
+                    <Text style={[styles.transferDate, { color: colors.mutedForeground }]}>
+                      {new Date(t.transfer_date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
+                    </Text>
+                  )}
+                  {t.type && t.type !== 'N/A' && (
+                    <Text style={[styles.transferType, { color: colors.accent }]}>{t.type}</Text>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
       <View style={{ height: 40 }} />
     </ScrollView>
   );
@@ -381,4 +474,19 @@ const styles = StyleSheet.create({
   playerInfo:    { flex: 1, gap: 2 },
   playerName:    { fontSize: 13, fontWeight: '700' },
   playerAge:     { fontSize: 10, fontWeight: '600' },
+
+  venueCard:      { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
+  venueInfo:      { padding: 16, gap: 4 },
+  venueName:      { fontSize: 15, fontWeight: '800' },
+  venueSub:       { fontSize: 12, fontWeight: '500' },
+  venueChips:     { flexDirection: 'row', gap: 8, marginTop: 8 },
+  venueChip:      { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  venueChipText:  { fontSize: 11, fontWeight: '600' },
+  transferRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
+  transferPlayer: { fontSize: 13, fontWeight: '700' },
+  transferTeams:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  transferLogo:   { width: 14, height: 14 },
+  transferTeamText:{ fontSize: 11, fontWeight: '500', maxWidth: 90 },
+  transferDate:   { fontSize: 10, fontWeight: '600' },
+  transferType:   { fontSize: 9, fontWeight: '700', marginTop: 2 },
 });

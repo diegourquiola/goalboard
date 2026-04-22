@@ -289,7 +289,7 @@ export default function TeamsScreen() {
       {/* League selector */}
       <View style={styles.leagueBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.leagueBarContent}>
-          {LEAGUES.map(l => {
+          {LEAGUES.filter(l => l.code !== 'CL').map(l => {
             const isSelected = league === l.code;
             return (
               <TouchableOpacity

@@ -94,7 +94,7 @@ function AppContent() {
         },
       }}
     >
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false, headerBackTitle: 'Back' }}>
         <Stack.Screen name="MainTabs"    component={MainTabs} />
         <Stack.Screen
           name="MatchDetail"

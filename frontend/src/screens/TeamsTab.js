@@ -36,7 +36,7 @@ export default function TeamsTab() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerShadowVisible: false,
-        headerBackTitle: '',
+        headerBackTitle: 'Back',
         headerTintColor: colors.foreground,
         contentStyle: { backgroundColor: colors.background },
       }}

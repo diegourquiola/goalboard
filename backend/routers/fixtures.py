@@ -4,6 +4,8 @@ from services.football_api import (
     get_fixture_lineups,
     get_fixture_statistics,
     get_fixture_events,
+    get_fixture_players,
+    get_predictions,
 )
 
 router = APIRouter()
@@ -41,5 +43,22 @@ def fixture_events(fixture_id: int):
     """Return match events (goals, cards, substitutions) sorted by minute."""
     try:
         return get_fixture_events(fixture_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/fixtures/{fixture_id}/players")
+def fixture_players(fixture_id: int):
+    """Return player_id -> rating map for a finished/live fixture."""
+    try:
+        return get_fixture_players(fixture_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/fixtures/{fixture_id}/predictions")
+def fixture_predictions(fixture_id: int):
+    try:
+        return get_predictions(fixture_id)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))

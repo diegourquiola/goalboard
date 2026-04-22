@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
-from services.football_api import get_team, get_team_next_fixture, get_team_last_fixtures, get_team_season_fixtures, search_teams
+from services.football_api import get_team, get_team_next_fixture, get_team_last_fixtures, get_team_season_fixtures, search_teams, get_injuries, get_coaches, get_transfers
 
 router = APIRouter()
 
@@ -37,6 +37,30 @@ def team_season_fixtures(team_id: int):
     """Return all season fixtures (past + upcoming) for a team, sorted by date."""
     try:
         return get_team_season_fixtures(team_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/teams/{team_id}/injuries")
+def team_injuries(team_id: int):
+    try:
+        return get_injuries(team_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/teams/{team_id}/coach")
+def team_coach(team_id: int):
+    try:
+        return get_coaches(team_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/teams/{team_id}/transfers")
+def team_transfers(team_id: int):
+    try:
+        return get_transfers(team_id)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 
