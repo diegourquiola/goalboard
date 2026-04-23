@@ -1,0 +1,130 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View, Text, TextInput, TouchableOpacity,
+  StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+} from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { supabase } from '../../services/supabase';
+import { useTheme } from '../../theme/ThemeContext';
+
+WebBrowser.maybeCompleteAuthSession();
+
+export default function LoginScreen({ navigation }) {
+  const { colors } = useTheme();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const [, googleResponse, promptGoogleLogin] = Google.useIdTokenAuthRequest({
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+  });
+
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const { id_token } = googleResponse.params;
+      supabase.auth.signInWithIdToken({ provider: 'google', token: id_token })
+        .then(({ error }) => { if (error) Alert.alert('Google sign-in failed', error.message); });
+    }
+  }, [googleResponse]);
+
+  async function handleLogin() {
+    if (!email || !password) return;
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (error) Alert.alert('Login failed', error.message);
+  }
+
+  async function handleAppleLogin() {
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+      });
+      if (error) Alert.alert('Apple sign-in failed', error.message);
+    } catch (e) {
+      if (e.code !== 'ERR_REQUEST_CANCELED') {
+        Alert.alert('Apple sign-in failed', e.message);
+      }
+    }
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <Text style={[styles.title, { color: colors.foreground }]}>Welcome back</Text>
+
+      <TextInput
+        style={[styles.input, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
+        placeholder="Email"
+        placeholderTextColor={colors.mutedForeground}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        value={email}
+        onChangeText={setEmail}
+      />
+
+      <TextInput
+        style={[styles.input, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
+        placeholder="Password"
+        placeholderTextColor={colors.mutedForeground}
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
+
+      <TouchableOpacity
+        style={[styles.btn, { backgroundColor: colors.accent }]}
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        {loading
+          ? <ActivityIndicator color="#fff" />
+          : <Text style={styles.btnText}>Log In</Text>
+        }
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.oauthBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+        onPress={() => promptGoogleLogin()}
+      >
+        <Text style={[styles.oauthText, { color: colors.foreground }]}>Continue with Google</Text>
+      </TouchableOpacity>
+
+      {Platform.OS === 'ios' && (
+        <AppleAuthentication.AppleAuthenticationButton
+          buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+          cornerRadius={12}
+          style={{ width: '100%', height: 50 }}
+          onPress={handleAppleLogin}
+        />
+      )}
+
+      <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+        <Text style={[styles.link, { color: colors.accent }]}>Don't have an account? Sign up</Text>
+      </TouchableOpacity>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12 },
+  title:     { fontSize: 28, fontWeight: '800', marginBottom: 8 },
+  input:     { height: 50, borderRadius: 12, borderWidth: 1, paddingHorizontal: 16, fontSize: 16 },
+  btn:       { height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  btnText:   { color: '#fff', fontWeight: '700', fontSize: 16 },
+  oauthBtn:  { height: 50, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  oauthText: { fontWeight: '600', fontSize: 15 },
+  link:      { textAlign: 'center', marginTop: 8, fontWeight: '500' },
+});
