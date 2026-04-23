@@ -13,6 +13,7 @@ import TeamDetailScreen    from './src/screens/TeamDetailScreen';
 import TeamFixturesScreen  from './src/screens/TeamFixturesScreen';
 import PlayerDetailScreen  from './src/screens/PlayerDetailScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+import { AuthProvider } from './src/context/AuthContext';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -147,9 +148,11 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 
