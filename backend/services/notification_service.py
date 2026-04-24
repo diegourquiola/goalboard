@@ -5,12 +5,18 @@ from services.football_api import _get
 # In-memory state tracking per fixture
 _processed_events: dict[int, set] = {}
 _status_sent: dict[int, set] = {}
+_lineups_sent: set[int] = set()
 
 EXPO_PUSH_URL = "https://exp.host/--/push/v2/send"
 
 
 def _get_live_fixtures() -> list[dict]:
     data = _get("/fixtures", {"live": "all"}, ttl=0)
+    return data.get("response", [])
+
+
+def _get_fixture_lineups(fixture_id: int) -> list[dict]:
+    data = _get("/fixtures/lineups", {"fixture": fixture_id}, ttl=60)
     return data.get("response", [])
 
 
@@ -113,6 +119,20 @@ def poll_live_events() -> None:
             )
             status_sent.add("FT")
 
+        # Lineups available (sent once per fixture when match goes live)
+        if status in ("1H", "2H", "ET", "HT") and fixture_id not in _lineups_sent:
+            try:
+                lineups = _get_fixture_lineups(fixture_id)
+                if lineups:
+                    _send_notifications(
+                        tokens,
+                        f"📋 Lineups Available | {home['name']} vs {away['name']}",
+                        "Starting lineups have been confirmed.",
+                    )
+                    _lineups_sent.add(fixture_id)
+            except Exception:
+                pass
+
         # Event-based notifications
         try:
             events = _get_fixture_events(fixture_id)
@@ -156,3 +176,4 @@ def poll_live_events() -> None:
         if status in ("FT", "AET", "PEN"):
             _processed_events.pop(fixture_id, None)
             _status_sent.pop(fixture_id, None)
+            _lineups_sent.discard(fixture_id)
