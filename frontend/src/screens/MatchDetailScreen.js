@@ -11,6 +11,7 @@ import PitchFormation from '../components/PitchFormation';
 import api from '../services/api';
 import { hapticSelect, hapticSuccess } from '../utils/haptics';
 import { TabView } from 'react-native-tab-view';
+import MatchBellIcon from '../components/MatchBellIcon';
 
 const ROUTES = [
   { key: 'details', title: 'DETAILS' },
@@ -172,6 +173,14 @@ export default function MatchDetailScreen({ route }) {
   const homeId    = match.teams?.home?.id;
   const awayId    = match.teams?.away?.id;
   const fixtureId = match.id;
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <MatchBellIcon match={match} size={22} style={{ marginRight: 8 }} />
+      ),
+    });
+  }, [match]);
 
   const navigateToTeam = useCallback((teamObj, standingsRow) => {
     hapticSelect();
