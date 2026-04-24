@@ -35,3 +35,23 @@ create policy "Users manage own tokens"
   on push_tokens for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- Match subscriptions: manual per-match notification opt-in
+create table if not exists match_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  fixture_id bigint not null,
+  home_team_id bigint,
+  away_team_id bigint,
+  home_name text,
+  away_name text,
+  created_at timestamptz default now(),
+  unique(user_id, fixture_id)
+);
+
+alter table match_subscriptions enable row level security;
+
+create policy "Users manage own match subscriptions"
+  on match_subscriptions for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
