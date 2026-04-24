@@ -6,13 +6,31 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://fbidzxajanmoufxsagyg.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_KfGtC3zlIYr7-5WBRlSFNw_fC4Ek7If",
+        "EXPO_PUBLIC_BACKEND_URL": "https://goalboard-xreq.onrender.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "887255048617-gpuc09arjf9e1ek5fsjntf3bns86po4a.apps.googleusercontent.com"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://fbidzxajanmoufxsagyg.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_KfGtC3zlIYr7-5WBRlSFNw_fC4Ek7If",
+        "EXPO_PUBLIC_BACKEND_URL": "https://goalboard-xreq.onrender.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "887255048617-gpuc09arjf9e1ek5fsjntf3bns86po4a.apps.googleusercontent.com"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://fbidzxajanmoufxsagyg.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_KfGtC3zlIYr7-5WBRlSFNw_fC4Ek7If",
+        "EXPO_PUBLIC_BACKEND_URL": "https://goalboard-xreq.onrender.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "887255048617-gpuc09arjf9e1ek5fsjntf3bns86po4a.apps.googleusercontent.com"
+      }
     }
   },
   "submit": {
