@@ -163,6 +163,44 @@ function EventRow({ event, colors, homeId }) {
   );
 }
 
+function MatchDivider({ label, colors }) {
+  return (
+    <View style={[s.dividerRow, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
+      <Text style={[s.dividerText, { color: colors.mutedForeground }]}>{label}</Text>
+    </View>
+  );
+}
+
+function buildEventItems(events, match) {
+  const reversed = [...events].reverse();
+  const items = [];
+  let htInserted = false;
+
+  for (const ev of reversed) {
+    if (!htInserted && (ev.minute ?? 0) <= 45) {
+      items.push({ _divider: 'HT' });
+      htInserted = true;
+    }
+    items.push(ev);
+  }
+
+  const pastHt = match.status === 'finished' ||
+    ['HT', '2H', 'ET', 'BT', 'P'].includes(match.status_short);
+  if (!htInserted && pastHt) {
+    items.push({ _divider: 'HT' });
+  }
+
+  if (match.status === 'finished') {
+    const ss = match.status_short;
+    const ftLabel = ss === 'AET' ? 'FULL TIME (AET)' : ss === 'PEN' ? 'FULL TIME (PEN)' : 'FULL TIME';
+    items.unshift({ _divider: 'FT', label: ftLabel });
+  } else if (match.status_short === 'HT') {
+    items.unshift({ _divider: 'HT_LIVE', label: 'HALF TIME' });
+  }
+
+  return items;
+}
+
 export default function MatchDetailScreen({ route }) {
   const { match, leagueCode } = route.params;
   const { colors, isDark } = useTheme();
@@ -393,14 +431,20 @@ export default function MatchDetailScreen({ route }) {
                <Text style={[s.empty, { color: colors.mutedForeground }]}>No events yet.</Text>
              ) : (
                <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                 {[...events].reverse().map((ev, i) => (
-                   <EventRow
-                     key={`${ev.minute}-${ev.type}-${i}`}
-                     event={ev}
-                     colors={colors}
-                     homeId={homeId}
-                   />
-                 ))}
+                 {buildEventItems(events, match).map((item, i) => {
+                   if (item._divider) {
+                     const label = item.label ?? (item._divider === 'HT' || item._divider === 'HT_LIVE' ? 'HALF TIME' : 'FULL TIME');
+                     return <MatchDivider key={`divider-${i}`} label={label} colors={colors} />;
+                   }
+                   return (
+                     <EventRow
+                       key={`${item.minute}-${item.type}-${i}`}
+                       event={item}
+                       colors={colors}
+                       homeId={homeId}
+                     />
+                   );
+                 })}
                </View>
              )}
           </View>
@@ -806,6 +850,8 @@ const s = StyleSheet.create({
   retryBtn:           { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
   retryText:          { fontSize: 13, fontWeight: '600' },
 
+  dividerRow:       { paddingVertical: 6, paddingHorizontal: 12, borderTopWidth: 1, borderBottomWidth: 1, alignItems: 'center' },
+  dividerText:      { fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   eventRow:         { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12 },
   eventSide:        { flex: 1 },
   eventHomeContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
