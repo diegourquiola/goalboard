@@ -13,5 +13,5 @@ export const LEAGUE_ZONES = {
   SA:  { clSpots: 4, relegationStart: 18 },
   FL1: { clSpots: 4, relegationStart: 18 },
   BL1: { clSpots: 4, relegationStart: 17 },
-  CL:  { clSpots: 0, relegationStart: null },
+  CL:  { clSpots: 8, playoffSpots: 24, relegationStart: null },
 };

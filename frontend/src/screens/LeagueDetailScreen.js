@@ -10,6 +10,7 @@ import ErrorState from '../components/ErrorState';
 import AllMatchesView from './AllMatchesView';
 import TopScorersView from './TopScorersView';
 import TopAssistsView from './TopAssistsView';
+import CLBracketView from './CLBracketView';
 import { useTheme } from '../theme/ThemeContext';
 import { LEAGUES, LEAGUE_ZONES } from '../constants/leagues';
 import { hapticSelect, hapticLight, hapticSuccess } from '../utils/haptics';
@@ -18,12 +19,13 @@ import { useAuth } from '../context/AuthContext';
 import { useFavorites } from '../hooks/useFavorites';
 import AuthGate from '../components/AuthGate';
 
-const TABS_ROUTES = [
+const BASE_TABS = [
   { key: 'standings',  title: 'STANDINGS'   },
   { key: 'matches',    title: 'MATCHES'     },
   { key: 'topscorers', title: 'TOP SCORERS' },
   { key: 'topassists', title: 'TOP ASSISTS' },
 ];
+const CL_TABS = [...BASE_TABS, { key: 'bracket', title: 'BRACKET' }];
 
 function StandingsView({ leagueCode }) {
   const { colors, isDark } = useTheme();
@@ -54,6 +56,11 @@ function StandingsView({ leagueCode }) {
   const zones = LEAGUE_ZONES[leagueCode] ?? { clSpots: 4, relegationStart: 18 };
 
   const getIndicator = (pos) => {
+    if (leagueCode === 'CL') {
+      if (pos <= 8)  return '#16a34a';  // direct Round of 16
+      if (pos <= 24) return '#86efac';  // knockout playoffs
+      return null;
+    }
     if (zones.clSpots > 0 && pos <= zones.clSpots) return colors.accent;
     if (zones.relegationStart && pos >= zones.relegationStart) return colors.destructive;
     return null;
@@ -115,6 +122,20 @@ function StandingsView({ leagueCode }) {
           <Text style={[s.empty, { color: colors.mutedForeground }]}>No standings data.</Text>
         )}
       </View>
+
+      {leagueCode === 'CL' && (
+        <View style={[s.legend, { marginHorizontal: 16 }]}>
+          <View style={s.legendRow}>
+            <View style={[s.legendDot, { backgroundColor: '#16a34a' }]} />
+            <Text style={[s.legendText, { color: colors.mutedForeground }]}>Round of 16</Text>
+          </View>
+          <View style={s.legendRow}>
+            <View style={[s.legendDot, { backgroundColor: '#86efac' }]} />
+            <Text style={[s.legendText, { color: colors.mutedForeground }]}>Knockout Playoffs</Text>
+          </View>
+        </View>
+      )}
+
       <View style={{ height: 40 }} />
     </ScrollView>
   );
@@ -128,6 +149,8 @@ export default function LeagueDetailScreen({ route, navigation }) {
   const [activeTab, setActiveTab] = useState(0);
   const [showAuthGate, setShowAuthGate] = useState(false);
   const layout = useWindowDimensions();
+  const isCL = league.code === 'CL';
+  const TABS_ROUTES = isCL ? CL_TABS : BASE_TABS;
 
   // Always use the numeric API id as the stable external identifier.
   // league.id is set for both featured leagues (added to LEAGUES constant) and
@@ -161,6 +184,7 @@ export default function LeagueDetailScreen({ route, navigation }) {
     if (r.key === 'matches')    return <AllMatchesView leagueCode={league.code} />;
     if (r.key === 'topscorers') return <TopScorersView leagueCode={league.code} />;
     if (r.key === 'topassists') return <TopAssistsView leagueCode={league.code} />;
+    if (r.key === 'bracket')    return <CLBracketView />;
     return null;
   }, [league.code]);
 
@@ -230,4 +254,8 @@ const s = StyleSheet.create({
   teamLogo:   { width: 16, height: 16 },
   teamName:   { fontSize: 14, fontWeight: '700', flex: 1 },
   empty:      { textAlign: 'center', paddingVertical: 40, fontSize: 14 },
+  legend:     { flexDirection: 'row', gap: 16, paddingVertical: 10 },
+  legendRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot:  { width: 10, height: 10, borderRadius: 5 },
+  legendText: { fontSize: 12, fontWeight: '500' },
 });

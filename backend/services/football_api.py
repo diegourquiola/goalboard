@@ -167,7 +167,41 @@ def _parse_fixture(f: dict) -> dict:
             "away": goals.get("away"),
         },
         "stats": stats if stats else None,
+        "status_short": status_short,
     }
+
+
+# CL knockout round definitions in bracket order
+_CL_KNOCKOUT_STAGES = [
+    ("Playoff Round",  1, False),
+    ("Round of 16",    2, False),
+    ("Quarter-finals", 3, False),
+    ("Semi-finals",    4, False),
+    ("Final",          5, True),
+]
+
+
+def get_cl_bracket() -> dict:
+    raw = _get("/fixtures", params={"league": 2, "season": CURRENT_SEASON}, ttl=120)
+    all_fixtures = raw.get("response", [])
+
+    buckets: dict[str, dict] = {}
+    for stage_name, order, single_leg in _CL_KNOCKOUT_STAGES:
+        buckets[stage_name] = {"display": stage_name, "order": order, "single_leg": single_leg, "leg1": [], "leg2": []}
+
+    for f in all_fixtures:
+        round_name = f.get("league", {}).get("round", "")
+        stage = next((s for s, _, __ in _CL_KNOCKOUT_STAGES if s in round_name), None)
+        if not stage:
+            continue
+        parsed = _parse_fixture(f)
+        if "2nd Leg" in round_name:
+            buckets[stage]["leg2"].append(parsed)
+        else:
+            buckets[stage]["leg1"].append(parsed)
+
+    ordered = sorted(buckets.values(), key=lambda r: r["order"])
+    return {"rounds": ordered}
 
 
 def get_matches(league_code: str, matchday: int | None = None, status: str | None = None,
