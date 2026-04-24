@@ -18,19 +18,19 @@ function AppHeaderTitle({ colors }) {
   );
 }
 
-export default function LeaguesTab() {
-  const { colors, isDark, toggle } = useTheme();
+function ProfileIcon({ navigation, colors }) {
+  return (
+    <TouchableOpacity
+      onPress={() => navigation.navigate('Profile')}
+      style={[styles.iconBtn, { backgroundColor: 'rgba(128,128,128,0.1)' }]}
+    >
+      <Ionicons name="person-circle-outline" size={24} color={colors.foreground} />
+    </TouchableOpacity>
+  );
+}
 
-  function ThemeToggle() {
-    return (
-      <TouchableOpacity
-        onPress={toggle}
-        style={[styles.iconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
-      >
-        <Ionicons name={isDark ? 'sunny' : 'moon'} size={20} color={colors.foreground} />
-      </TouchableOpacity>
-    );
-  }
+export default function LeaguesTab() {
+  const { colors } = useTheme();
 
   return (
     <Stack.Navigator
@@ -45,23 +45,23 @@ export default function LeaguesTab() {
       <Stack.Screen
         name="LeaguesList"
         component={LeaguesListScreen}
-        options={{
+        options={({ navigation }) => ({
           headerTitle: () => <AppHeaderTitle colors={colors} />,
           headerTitleAlign: 'left',
           headerLeft: () => null,
-          headerRight: () => <ThemeToggle />,
-        }}
+          headerRight: () => <ProfileIcon navigation={navigation} colors={colors} />,
+        })}
       />
       <Stack.Screen
         name="LeagueDetail"
         component={LeagueDetailScreen}
-        options={({ route }) => ({
+        options={({ route, navigation }) => ({
           headerTitle: () => (
             route.params?.league?.logo
               ? <Image source={{ uri: route.params.league.logo }} style={styles.leagueLogo} resizeMode="contain" />
               : null
           ),
-          headerRight: () => <ThemeToggle />,
+          headerRight: () => <ProfileIcon navigation={navigation} colors={colors} />,
         })}
       />
     </Stack.Navigator>
