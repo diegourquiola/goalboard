@@ -24,9 +24,9 @@ function ProfileIcon({ navigation, colors }) {
   return (
     <TouchableOpacity
       onPress={() => navigation.navigate(session ? 'Profile' : 'Auth')}
-      style={[styles.iconBtn, { backgroundColor: 'rgba(128,128,128,0.1)' }]}
+      style={styles.iconBtn}
     >
-      <Ionicons name="person-circle-outline" size={24} color={colors.foreground} />
+      <Ionicons name="person-circle-outline" size={28} color={colors.foreground} />
     </TouchableOpacity>
   );
 }
@@ -75,5 +75,5 @@ const styles = StyleSheet.create({
   appLogo:    { width: 32, height: 32, borderRadius: 8 },
   appName:    { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
   leagueLogo: { width: 36, height: 36 },
-  iconBtn:    { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  iconBtn:    { marginRight: 8 },
 });

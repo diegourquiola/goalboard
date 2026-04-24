@@ -71,7 +71,7 @@ export default function TeamDetailScreen({ route, navigation }) {
               type: 'team',
               externalId: teamId,
               name: team?.team_name ?? routeTeam.team_name ?? '',
-              logo: team?.logo ?? routeTeam.logo ?? null,
+              logo: team?.team_logo ?? routeTeam.team_logo ?? null,
             });
           }}
           style={{ marginRight: 8 }}

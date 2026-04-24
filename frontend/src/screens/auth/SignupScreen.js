@@ -8,11 +8,13 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { supabase } from '../../services/supabase';
 import { useTheme } from '../../theme/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function SignupScreen({ navigation }) {
   const { colors } = useTheme();
+  const { session } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,6 +23,12 @@ export default function SignupScreen({ navigation }) {
   const [, googleResponse, promptGoogleLogin] = Google.useIdTokenAuthRequest({
     clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
   });
+
+  useEffect(() => {
+    if (session) {
+      navigation.getParent()?.navigate('MainTabs');
+    }
+  }, [session]);
 
   useEffect(() => {
     if (googleResponse?.type === 'success') {

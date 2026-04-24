@@ -3,16 +3,19 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { supabase } from '../../services/supabase';
 import { useTheme } from '../../theme/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }) {
   const { colors } = useTheme();
+  const { session } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,6 +23,12 @@ export default function LoginScreen({ navigation }) {
   const [, googleResponse, promptGoogleLogin] = Google.useIdTokenAuthRequest({
     clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
   });
+
+  useEffect(() => {
+    if (session) {
+      navigation.getParent()?.navigate('MainTabs');
+    }
+  }, [session]);
 
   useEffect(() => {
     if (googleResponse?.type === 'success') {
@@ -62,7 +71,10 @@ export default function LoginScreen({ navigation }) {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <Text style={[styles.title, { color: colors.foreground }]}>Welcome back</Text>
+      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.getParent()?.goBack()}>
+        <Ionicons name="chevron-back" size={28} color={colors.foreground} />
+      </TouchableOpacity>
+      <Text style={[styles.title, { color: colors.foreground }]}>GoalBoard</Text>
 
       <TextInput
         style={[styles.input, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
@@ -120,6 +132,7 @@ export default function LoginScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12 },
+  backBtn:   { position: 'absolute', top: 60, left: 16 },
   title:     { fontSize: 28, fontWeight: '800', marginBottom: 8 },
   input:     { height: 50, borderRadius: 12, borderWidth: 1, paddingHorizontal: 16, fontSize: 16 },
   btn:       { height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

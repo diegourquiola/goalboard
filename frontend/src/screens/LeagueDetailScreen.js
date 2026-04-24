@@ -129,7 +129,9 @@ export default function LeagueDetailScreen({ route, navigation }) {
   const [showAuthGate, setShowAuthGate] = useState(false);
   const layout = useWindowDimensions();
 
-  const favorited = isFavorited('league', league.id);
+  const leagueId = league.id ?? league.code;
+  const leagueName = league.name ?? league.label;
+  const favorited = isFavorited('league', leagueId);
 
   useEffect(() => {
     navigation.setOptions({
@@ -137,7 +139,7 @@ export default function LeagueDetailScreen({ route, navigation }) {
         <TouchableOpacity
           onPress={() => {
             if (!user) { setShowAuthGate(true); return; }
-            toggleFavorite({ type: 'league', externalId: league.id, name: league.name, logo: league.logo ?? null });
+            toggleFavorite({ type: 'league', externalId: leagueId, name: leagueName, logo: league.logo ?? null });
           }}
           style={{ marginRight: 8 }}
         >

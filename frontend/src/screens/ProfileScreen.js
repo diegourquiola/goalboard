@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
 import { useBiometrics } from '../hooks/useBiometrics';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const { user } = useAuth();
   const { colors } = useTheme();
   const { enabled: biometricsEnabled, supported, enable, disable } = useBiometrics();
@@ -17,6 +17,7 @@ export default function ProfileScreen() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
+    navigation.navigate('MainTabs');
   }
 
   async function handleChangePassword() {

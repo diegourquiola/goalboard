@@ -1,41 +1,52 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View, Text, Image, TouchableOpacity,
-  StyleSheet, SectionList, ActivityIndicator,
+  StyleSheet, SectionList, ActivityIndicator, RefreshControl,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useFavorites } from '../hooks/useFavorites';
 import { useTheme } from '../theme/ThemeContext';
 
 export default function FavoritesScreen() {
   const { user } = useAuth();
-  const { favorites, loading } = useFavorites();
+  const { favorites, loading, refresh } = useFavorites();
   const { colors } = useTheme();
   const navigation = useNavigation();
 
+  useFocusEffect(
+    useCallback(() => {
+      if (user) refresh();
+    }, [user])
+  );
+
   if (!user) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in to see favorites</Text>
-        <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-          Save teams, leagues, and players you follow.
-        </Text>
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: colors.accent }]}
-          onPress={() => navigation.navigate('Auth')}
-        >
-          <Text style={styles.btnText}>Log In / Sign Up</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={[styles.center, { backgroundColor: colors.background }]}>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in to see favorites</Text>
+          <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
+            Save teams, leagues, and players you follow.
+          </Text>
+          <TouchableOpacity
+            style={[styles.btn, { backgroundColor: colors.accent }]}
+            onPress={() => navigation.navigate('Auth')}
+          >
+            <Text style={styles.btnText}>Log In / Sign Up</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
-  if (loading) {
+  if (loading && favorites.length === 0) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.accent} />
-      </View>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={[styles.center, { backgroundColor: colors.background }]}>
+          <ActivityIndicator color={colors.accent} />
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -50,19 +61,21 @@ export default function FavoritesScreen() {
 
   if (sections.length === 0) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No favorites yet</Text>
-        <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-          Tap the heart icon on any team, league, or player to save it here.
-        </Text>
-      </View>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={[styles.center, { backgroundColor: colors.background }]}>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No favorites yet</Text>
+          <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
+            Tap the heart icon on any team, league, or player to save it here.
+          </Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   function handlePress(item) {
     if (item.type === 'team') {
       navigation.navigate('TeamDetail', {
-        team: { team_id: item.external_id, team_name: item.name, logo: item.logo },
+        team: { team_id: item.external_id, team_name: item.name, team_logo: item.logo },
         leagueCode: null,
         leagueLabel: null,
       });
@@ -95,26 +108,32 @@ export default function FavoritesScreen() {
   }
 
   return (
-    <SectionList
-      style={{ backgroundColor: colors.background }}
-      contentContainerStyle={styles.list}
-      sections={sections}
-      keyExtractor={item => `${item.type}-${item.external_id}`}
-      renderItem={renderItem}
-      renderSectionHeader={({ section }) => (
-        <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>{section.title}</Text>
-      )}
-    />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <SectionList
+        style={{ backgroundColor: colors.background }}
+        contentContainerStyle={styles.list}
+        sections={sections}
+        keyExtractor={item => `${item.type}-${item.external_id}`}
+        renderItem={renderItem}
+        renderSectionHeader={({ section }) => (
+          <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>{section.title}</Text>
+        )}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />
+        }
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea:      { flex: 1 },
   center:        { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, padding: 24 },
   emptyTitle:    { fontSize: 20, fontWeight: '700' },
   emptySub:      { fontSize: 14, textAlign: 'center', lineHeight: 20 },
   btn:           { height: 46, paddingHorizontal: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   btnText:       { color: '#fff', fontWeight: '700' },
-  list:          { padding: 16, gap: 8 },
+  list:          { padding: 16, gap: 8, paddingBottom: 100 },
   sectionHeader: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginTop: 16, marginBottom: 4 },
   row:           { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, borderWidth: 1 },
   logo:          { width: 36, height: 36, borderRadius: 8 },
