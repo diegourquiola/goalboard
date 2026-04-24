@@ -8,6 +8,7 @@ import api from '../services/api';
 import ErrorState from '../components/ErrorState';
 import { useTheme } from '../theme/ThemeContext';
 import { hapticSelect, hapticSuccess } from '../utils/haptics';
+import MatchBellIcon from '../components/MatchBellIcon';
 
 const HEADER_H = 38;
 const MATCH_H  = 60;
@@ -233,6 +234,8 @@ export default function AllMatchesView({ leagueCode }) {
             )}
           </View>
         </View>
+
+        <MatchBellIcon match={m} size={18} style={styles.bellCol} />
       </TouchableOpacity>
     );
   }, [colors, isDark, navigation, leagueCode]);
@@ -281,7 +284,8 @@ const styles = StyleSheet.create({
 
   divider:        { width: 1, height: '60%', marginRight: 12 },
 
-  teamsCol:       { flex: 1, justifyContent: 'center', gap: 5, paddingRight: 12 },
+  teamsCol:       { flex: 1, justifyContent: 'center', gap: 5 },
+  bellCol:        { width: 36, alignItems: 'center', justifyContent: 'center' },
   teamLine:       { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logoWrap:       { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   teamLogo:       { width: 14, height: 14 },
