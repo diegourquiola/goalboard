@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet } from 'react-native';
+
 import { BlurView } from 'expo-blur';
 
 import LeaguesTab          from './src/screens/LeaguesTab';
@@ -181,4 +181,3 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({});
