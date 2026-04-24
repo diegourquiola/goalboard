@@ -4,13 +4,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routers import standings, matches, teams, leagues, fixtures, top_scorers, squad, players, push_tokens
 from services.scheduler import get_scheduler
-from services.notification_service import poll_live_events
+from services.notification_service import poll_live_events, poll_upcoming_events
 
 
 @asynccontextmanager
 async def lifespan(app):
     scheduler = get_scheduler()
-    scheduler.add_job(poll_live_events, "interval", seconds=60, id="live_events")
+    scheduler.add_job(poll_live_events,     "interval", seconds=60, id="live_events")
+    scheduler.add_job(poll_upcoming_events, "interval", seconds=60, id="upcoming_events")
     scheduler.start()
     yield
     scheduler.shutdown()
