@@ -111,7 +111,7 @@ function StatBar({ label, home, away, colors, isDark }) {
 function EventRow({ event, colors, homeId }) {
   const { type, detail } = event;
   let icon;
-  if (type === 'Goal')       icon = detail === 'Own Goal' ? '🔴⚽' : '⚽';
+  if (type === 'Goal')       icon = detail === 'Own Goal' ? '⚽ (O.G)' : '⚽';
   else if (type === 'Card')  icon = detail === 'Yellow Card' ? '🟨' : '🟥';
   else if (type === 'subst') icon = '↕';
   else                       return null;
