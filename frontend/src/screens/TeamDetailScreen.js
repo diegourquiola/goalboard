@@ -104,8 +104,8 @@ export default function TeamDetailScreen({ route, navigation }) {
         })
         .catch(() => {});
     } else if (!hasStats && !leagueCode) {
-      // Discover which league this team belongs to
-      LEAGUES.forEach(({ code, label }) => {
+      // Discover which league this team belongs to (skip CL — domestic leagues only)
+      LEAGUES.filter(({ code }) => code !== 'CL').forEach(({ code, label }) => {
         api.get(`/api/standings/${code}`)
           .then(r => {
             const rows = r.data?.stage?.[0]?.standings ?? [];

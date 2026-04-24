@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, RefreshControl, Image,
-  StyleSheet, Modal, FlatList, ActivityIndicator, TextInput,
+  StyleSheet, Modal, FlatList, ActivityIndicator, TextInput, Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -155,6 +155,7 @@ export default function TeamsScreen() {
   const [teamResults, setTeamResults]   = useState([]);
   const [searching, setSearching]       = useState(false);
   const searchDebounce = useRef(null);
+  const inputRef = useRef(null);
 
   const fetchStandings = useCallback(async (code) => {
     setLoading(true);
@@ -194,6 +195,13 @@ export default function TeamsScreen() {
         setSearching(false);
       }
     }, 400);
+  }, []);
+
+  const clearSearch = useCallback(() => {
+    setTeamQuery('');
+    setTeamResults([]);
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    inputRef.current?.blur();
   }, []);
 
   // Fetch next fixture whenever selected team changes
@@ -272,19 +280,31 @@ export default function TeamsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Team search bar */}
-      <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={() => inputRef.current?.focus()}
+        style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}
+      >
         <Ionicons name="search" size={16} color={colors.mutedForeground} style={{ marginRight: 8 }} />
         <TextInput
+          ref={inputRef}
           value={teamQuery}
           onChangeText={handleTeamSearch}
           placeholder="Search any team..."
           placeholderTextColor={colors.mutedForeground}
           style={[styles.searchInput, { color: colors.foreground }]}
-          clearButtonMode="while-editing"
           returnKeyType="search"
+          onSubmitEditing={Keyboard.dismiss}
         />
-        {searching && <ActivityIndicator size="small" color={colors.accent} style={{ marginLeft: 8 }} />}
-      </View>
+        {searching
+          ? <ActivityIndicator size="small" color={colors.accent} style={{ marginLeft: 8 }} />
+          : teamQuery.length > 0
+            ? <TouchableOpacity onPress={clearSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            : null
+        }
+      </TouchableOpacity>
 
       {/* League selector */}
       <View style={styles.leagueBar}>
@@ -312,7 +332,11 @@ export default function TeamsScreen() {
 
       {/* Search results overlay */}
       {teamQuery.length >= 2 && (
-        <View style={[styles.searchResults, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <ScrollView
+          style={[styles.searchResults, { backgroundColor: colors.card, borderColor: colors.border, maxHeight: 300 }]}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+        >
           {teamResults.length === 0 && !searching ? (
             <Text style={[styles.searchEmpty, { color: colors.mutedForeground }]}>No teams found.</Text>
           ) : teamResults.map(t => (
@@ -322,11 +346,10 @@ export default function TeamsScreen() {
               activeOpacity={0.7}
               onPress={() => {
                 hapticSelect();
-                setTeamQuery('');
-                setTeamResults([]);
+                clearSearch();
                 navigation.push('TeamDetail', {
                   team: { team_id: t.id, team_name: t.name, team_logo: t.logo },
-                  leagueCode: league,
+                  leagueCode: null,
                 });
               }}
             >
@@ -342,7 +365,7 @@ export default function TeamsScreen() {
               <Ionicons name="chevron-forward" size={14} color={colors.mutedForeground} />
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       )}
 
       {loading && <LoadingState />}
