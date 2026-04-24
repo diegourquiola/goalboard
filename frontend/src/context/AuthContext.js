@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../services/supabase';
+import { registerPushToken } from '../services/notifications';
 
 const AuthContext = createContext(null);
 
@@ -13,8 +14,14 @@ export function AuthProvider({ children }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      if (event === 'SIGNED_IN' && session) {
+        registerPushToken(
+          process.env.EXPO_PUBLIC_BACKEND_URL,
+          session.access_token,
+        );
+      }
     });
 
     return () => subscription.unsubscribe();

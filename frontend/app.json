@@ -32,6 +32,22 @@
       "eas": {
         "projectId": "110f1985-4112-4926-a0b6-e0ff3d4fa0b2"
       }
-    }
+    },
+    "plugins": [
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo.png",
+          "color": "#007AFF"
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow GoalBoard to use Face ID to unlock the app."
+        }
+      ]
+    ]
   }
 }
