@@ -13,6 +13,10 @@ import TopAssistsView from './TopAssistsView';
 import { useTheme } from '../theme/ThemeContext';
 import { LEAGUES, LEAGUE_ZONES } from '../constants/leagues';
 import { hapticSelect, hapticLight, hapticSuccess } from '../utils/haptics';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
+import { useFavorites } from '../hooks/useFavorites';
+import AuthGate from '../components/AuthGate';
 
 const TABS_ROUTES = [
   { key: 'standings',  title: 'STANDINGS'   },
@@ -116,11 +120,36 @@ function StandingsView({ leagueCode }) {
   );
 }
 
-export default function LeagueDetailScreen({ route }) {
+export default function LeagueDetailScreen({ route, navigation }) {
   const league = route.params.league;
   const { colors } = useTheme();
+  const { user } = useAuth();
+  const { isFavorited, toggleFavorite } = useFavorites();
   const [activeTab, setActiveTab] = useState(0);
+  const [showAuthGate, setShowAuthGate] = useState(false);
   const layout = useWindowDimensions();
+
+  const favorited = isFavorited('league', league.id);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => {
+            if (!user) { setShowAuthGate(true); return; }
+            toggleFavorite({ type: 'league', externalId: league.id, name: league.name, logo: league.logo ?? null });
+          }}
+          style={{ marginRight: 8 }}
+        >
+          <Ionicons
+            name={favorited ? 'heart' : 'heart-outline'}
+            size={24}
+            color={favorited ? '#EF4444' : colors.foreground}
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [favorited, user]);
 
   const renderScene = useCallback(({ route: r }) => {
     if (r.key === 'standings')  return <StandingsView leagueCode={league.code} />;
@@ -168,6 +197,7 @@ export default function LeagueDetailScreen({ route }) {
           </View>
         )}
       />
+      <AuthGate visible={showAuthGate} onClose={() => setShowAuthGate(false)} />
     </View>
   );
 }

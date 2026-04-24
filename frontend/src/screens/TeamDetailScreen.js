@@ -8,6 +8,9 @@ import api from '../services/api';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../theme/ThemeContext';
 import { hapticSelect, hapticSuccess } from '../utils/haptics';
+import { useAuth } from '../context/AuthContext';
+import { useFavorites } from '../hooks/useFavorites';
+import AuthGate from '../components/AuthGate';
 
 function formatFixtureDate(dateStr) {
   if (!dateStr) return '';
@@ -36,6 +39,8 @@ const POSITION_SHORT = { Goalkeeper: 'GK', Defender: 'DEF', Midfielder: 'MID', A
 export default function TeamDetailScreen({ route, navigation }) {
   const { team: routeTeam, leagueCode, leagueLabel } = route.params;
   const { colors, isDark } = useTheme();
+  const { user } = useAuth();
+  const { isFavorited, toggleFavorite } = useFavorites();
 
   const teamId = routeTeam.team_id ?? routeTeam.id;
   const hasStats = routeTeam.games_played != null;
@@ -52,6 +57,34 @@ export default function TeamDetailScreen({ route, navigation }) {
   const [transfers, setTransfers] = useState([]);
   const [loadingTeamInfo, setLoadingTeamInfo] = useState(true);
   const [loadingTransfers, setLoadingTransfers] = useState(true);
+  const [showAuthGate, setShowAuthGate] = useState(false);
+
+  const favorited = isFavorited('team', teamId);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => {
+            if (!user) { setShowAuthGate(true); return; }
+            toggleFavorite({
+              type: 'team',
+              externalId: teamId,
+              name: team?.team_name ?? routeTeam.team_name ?? '',
+              logo: team?.logo ?? routeTeam.logo ?? null,
+            });
+          }}
+          style={{ marginRight: 8 }}
+        >
+          <Ionicons
+            name={favorited ? 'heart' : 'heart-outline'}
+            size={24}
+            color={favorited ? '#EF4444' : colors.foreground}
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [favorited, user, team]);
 
   const fetchData = useCallback(() => {
     setLoadingNext(true);
@@ -414,6 +447,7 @@ export default function TeamDetailScreen({ route, navigation }) {
       )}
 
       <View style={{ height: 40 }} />
+      <AuthGate visible={showAuthGate} onClose={() => setShowAuthGate(false)} />
     </ScrollView>
   );
 }

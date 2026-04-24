@@ -9,6 +9,10 @@ import ErrorState from '../components/ErrorState';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../theme/ThemeContext';
 import { hapticSuccess } from '../utils/haptics';
+import { TouchableOpacity } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { useFavorites } from '../hooks/useFavorites';
+import AuthGate from '../components/AuthGate';
 
 function InfoChip({ label, value, colors }) {
   if (!value) return null;
@@ -31,14 +35,19 @@ function StatCell({ label, value, colors, accent }) {
   );
 }
 
-export default function PlayerDetailScreen({ route }) {
+export default function PlayerDetailScreen({ route, navigation }) {
   const { playerId, playerName, playerPhoto } = route.params;
   const { colors, isDark } = useTheme();
+  const { user } = useAuth();
+  const { isFavorited, toggleFavorite } = useFavorites();
 
   const [player, setPlayer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showAuthGate, setShowAuthGate] = useState(false);
+
+  const favorited = isFavorited('player', playerId);
 
   const fetchPlayer = useCallback(async () => {
     setError(null);
@@ -54,6 +63,31 @@ export default function PlayerDetailScreen({ route }) {
   }, [playerId]);
 
   useEffect(() => { fetchPlayer(); }, [fetchPlayer]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => {
+            if (!user) { setShowAuthGate(true); return; }
+            toggleFavorite({
+              type: 'player',
+              externalId: playerId,
+              name: player?.name ?? playerName ?? '',
+              logo: player?.photo ?? playerPhoto ?? null,
+            });
+          }}
+          style={{ marginRight: 8 }}
+        >
+          <Ionicons
+            name={favorited ? 'heart' : 'heart-outline'}
+            size={24}
+            color={favorited ? '#EF4444' : colors.foreground}
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [favorited, user, player]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -240,6 +274,7 @@ export default function PlayerDetailScreen({ route }) {
       )}
 
       <View style={{ height: 40 }} />
+      <AuthGate visible={showAuthGate} onClose={() => setShowAuthGate(false)} />
     </ScrollView>
   );
 }
