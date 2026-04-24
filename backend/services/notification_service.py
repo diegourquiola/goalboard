@@ -19,20 +19,31 @@ def _get_fixture_events(fixture_id: int) -> list[dict]:
     return data.get("response", [])
 
 
-def _get_push_tokens_for_teams(home_id: int, away_id: int) -> list[str]:
+def _get_tokens_for_fixture(fixture_id: int, home_id: int, away_id: int) -> list[str]:
     supabase = get_supabase()
-    favorites = (
+
+    # Users who favorited either team
+    fav_rows = (
         supabase.table("user_favorites")
         .select("user_id")
         .eq("type", "team")
-        .in_("external_id", [home_id, away_id])
+        .in_("external_id", [str(home_id), str(away_id)])
         .execute()
         .data
     )
-    if not favorites:
+    # Users who manually subscribed to this match
+    sub_rows = (
+        supabase.table("match_subscriptions")
+        .select("user_id")
+        .eq("fixture_id", fixture_id)
+        .execute()
+        .data
+    )
+
+    user_ids = list({r["user_id"] for r in (fav_rows + sub_rows)})
+    if not user_ids:
         return []
 
-    user_ids = list({f["user_id"] for f in favorites})
     tokens = (
         supabase.table("push_tokens")
         .select("token")
@@ -69,7 +80,7 @@ def poll_live_events() -> None:
         home_score  = fixture["goals"]["home"] or 0
         away_score  = fixture["goals"]["away"] or 0
 
-        tokens = _get_push_tokens_for_teams(home["id"], away["id"])
+        tokens = _get_tokens_for_fixture(fixture_id, home["id"], away["id"])
         if not tokens:
             continue
 
