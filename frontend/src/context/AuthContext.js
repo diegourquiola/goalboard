@@ -12,6 +12,10 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         setSession(session);
+        // Register/refresh push token on every app open if already signed in
+        if (session) {
+          registerPushToken(process.env.EXPO_PUBLIC_BACKEND_URL, session.access_token);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));

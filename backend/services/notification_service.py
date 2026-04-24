@@ -6,7 +6,7 @@ from services.football_api import _get
 # In-memory state tracking per fixture
 _processed_events: dict[int, set] = {}
 _status_sent: dict[int, set] = {}
-_lineups_sent: set[int] = set()
+_lineups_sent: set[int] = set()   # covers both pre-match and during-match
 _reminder_sent: set[int] = set()
 _cancelled_sent: set[int] = set()
 
@@ -234,12 +234,24 @@ def poll_upcoming_events() -> None:
         if not tokens:
             continue
 
-        # Pre-match reminder — send once when kickoff is 25-35 min away
-        if status == "NS" and fixture_id not in _reminder_sent:
+        if status == "NS":
             try:
                 kickoff = datetime.datetime.fromisoformat(date_str.replace("Z", "+00:00"))
                 minutes_until = (kickoff - now).total_seconds() / 60
-                if 25 <= minutes_until <= 35:
+
+                # Pre-match lineups — check once per minute once within 2h of kickoff
+                if fixture_id not in _lineups_sent and minutes_until <= 120:
+                    lineups = _get_fixture_lineups(fixture_id)
+                    if lineups:
+                        _send_notifications(
+                            tokens,
+                            f"📋 Lineups | {home['name']} vs {away['name']}",
+                            "Starting lineups have been confirmed.",
+                        )
+                        _lineups_sent.add(fixture_id)
+
+                # Pre-match reminder — send once when kickoff is 25-35 min away
+                if fixture_id not in _reminder_sent and 25 <= minutes_until <= 35:
                     _send_notifications(
                         tokens,
                         f"⏰ Match Starts in 30 min",
