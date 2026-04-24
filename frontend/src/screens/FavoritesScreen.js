@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, Image, TouchableOpacity,
   StyleSheet, SectionList, ActivityIndicator, RefreshControl,
@@ -15,12 +15,19 @@ export default function FavoritesScreen() {
   const { favorites, loading, refresh } = useFavorites();
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      if (user) refresh();
+      if (user) refresh(); // silent background refresh — no spinner
     }, [user])
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
+  }, [refresh]);
 
   if (!user) {
     return (
@@ -128,7 +135,7 @@ export default function FavoritesScreen() {
           <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>{section.title}</Text>
         )}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
         }
       />
     </SafeAreaView>
