@@ -11,6 +11,7 @@ import { hapticSelect, hapticSuccess } from '../utils/haptics';
 import { useAuth } from '../context/AuthContext';
 import { useFavorites } from '../hooks/useFavorites';
 import AuthGate from '../components/AuthGate';
+import { LEAGUES } from '../constants/leagues';
 
 function formatFixtureDate(dateStr) {
   if (!dateStr) return '';
@@ -37,7 +38,7 @@ const POSITION_ORDER = { Goalkeeper: 0, Defender: 1, Midfielder: 2, Attacker: 3 
 const POSITION_SHORT = { Goalkeeper: 'GK', Defender: 'DEF', Midfielder: 'MID', Attacker: 'FWD' };
 
 export default function TeamDetailScreen({ route, navigation }) {
-  const { team: routeTeam, leagueCode, leagueLabel } = route.params;
+  const { team: routeTeam, leagueCode: routeLeagueCode, leagueLabel: routeLeagueLabel } = route.params;
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const { isFavorited, toggleFavorite } = useFavorites();
@@ -45,7 +46,10 @@ export default function TeamDetailScreen({ route, navigation }) {
   const teamId = routeTeam.team_id ?? routeTeam.id;
   const hasStats = routeTeam.games_played != null;
 
-  const [team, setTeam] = useState(routeTeam);
+  const [leagueCode, setLeagueCode]   = useState(routeLeagueCode ?? null);
+  const [leagueLabel, setLeagueLabel] = useState(routeLeagueLabel ?? null);
+
+  const [team, setTeam]   = useState(routeTeam);
   const [nextFixture, setNextFixture] = useState(null);
   const [lastFixtures, setLastFixtures] = useState([]);
   const [squad, setSquad] = useState([]);
@@ -74,7 +78,7 @@ export default function TeamDetailScreen({ route, navigation }) {
               logo: team?.team_logo ?? routeTeam.team_logo ?? null,
             });
           }}
-          style={{ marginRight: 8 }}
+          style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 4 }}
         >
           <Ionicons
             name={favorited ? 'heart' : 'heart-outline'}
@@ -84,7 +88,7 @@ export default function TeamDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       ),
     });
-  }, [favorited, user, team]);
+  }, [favorited, user, team, toggleFavorite]);
 
   const fetchData = useCallback(() => {
     setLoadingNext(true);
@@ -99,6 +103,21 @@ export default function TeamDetailScreen({ route, navigation }) {
           if (found) setTeam(prev => ({ ...prev, ...found }));
         })
         .catch(() => {});
+    } else if (!hasStats && !leagueCode) {
+      // Discover which league this team belongs to
+      LEAGUES.forEach(({ code, label }) => {
+        api.get(`/api/standings/${code}`)
+          .then(r => {
+            const rows = r.data?.stage?.[0]?.standings ?? [];
+            const found = rows.find(row => row.team_id === teamId);
+            if (found) {
+              setTeam(prev => ({ ...prev, ...found }));
+              setLeagueCode(code);
+              setLeagueLabel(label);
+            }
+          })
+          .catch(() => {});
+      });
     }
 
     api.get(`/api/teams/${teamId}/next`)
@@ -131,7 +150,7 @@ export default function TeamDetailScreen({ route, navigation }) {
       .then(r => setTransfers(Array.isArray(r.data) ? r.data : []))
       .catch(() => setTransfers([]))
       .finally(() => setLoadingTransfers(false));
-  }, [teamId, leagueCode, hasStats]);
+  }, [teamId, routeLeagueCode, hasStats]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

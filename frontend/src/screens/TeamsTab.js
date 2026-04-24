@@ -61,5 +61,5 @@ const styles = StyleSheet.create({
   appHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   appLogo:   { width: 32, height: 32, borderRadius: 8 },
   appName:   { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
-  iconBtn:   { marginRight: 8 },
+  iconBtn:   { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
 });

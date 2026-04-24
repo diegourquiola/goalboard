@@ -177,7 +177,7 @@ export default function MatchDetailScreen({ route }) {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <MatchBellIcon match={match} size={22} style={{ marginRight: 8 }} />
+        <MatchBellIcon match={match} size={22} style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 4 }} />
       ),
     });
   }, [match]);
@@ -215,6 +215,7 @@ export default function MatchDetailScreen({ route }) {
   });
 
   const fetchStandings = useCallback(() => {
+    if (!leagueCode) { setLoading(p => ({ ...p, standings: false })); return; }
     setLoading(p => ({ ...p, standings: true }));
     setErrors(p => ({ ...p, standings: false }));
     api.get(`/api/standings/${leagueCode}`)

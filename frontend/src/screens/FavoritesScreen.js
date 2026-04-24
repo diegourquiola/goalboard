@@ -98,10 +98,14 @@ export default function FavoritesScreen() {
         style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}
         onPress={() => handlePress(item)}
       >
-        {item.logo
-          ? <Image source={{ uri: item.logo }} style={styles.logo} resizeMode="contain" />
-          : <View style={[styles.logo, { backgroundColor: colors.muted, borderRadius: 8 }]} />
-        }
+        <View style={[styles.logoWrap, { backgroundColor: colors.muted }]}>
+          {item.logo
+            ? <Image source={{ uri: item.logo }} style={styles.logo} resizeMode="contain" />
+            : <Text style={[styles.logoInitial, { color: colors.mutedForeground }]}>
+                {item.name ? item.name.charAt(0).toUpperCase() : '?'}
+              </Text>
+          }
+        </View>
         <Text style={[styles.name, { color: colors.foreground }]}>{item.name}</Text>
       </TouchableOpacity>
     );
@@ -109,6 +113,7 @@ export default function FavoritesScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <Text style={[styles.screenTitle, { color: colors.foreground }]}>Favorites</Text>
       <SectionList
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.list}
@@ -128,6 +133,7 @@ export default function FavoritesScreen() {
 
 const styles = StyleSheet.create({
   safeArea:      { flex: 1 },
+  screenTitle:   { fontSize: 28, fontWeight: '800', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 },
   center:        { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, padding: 24 },
   emptyTitle:    { fontSize: 20, fontWeight: '700' },
   emptySub:      { fontSize: 14, textAlign: 'center', lineHeight: 20 },
@@ -136,6 +142,8 @@ const styles = StyleSheet.create({
   list:          { padding: 16, gap: 8, paddingBottom: 100 },
   sectionHeader: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginTop: 16, marginBottom: 4 },
   row:           { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, borderWidth: 1 },
-  logo:          { width: 36, height: 36, borderRadius: 8 },
+  logoWrap:      { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  logo:          { width: 30, height: 30 },
+  logoInitial:   { fontSize: 16, fontWeight: '800' },
   name:          { fontSize: 15, fontWeight: '600', flex: 1 },
 });

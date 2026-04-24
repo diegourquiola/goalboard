@@ -8,9 +8,10 @@ import api from '../services/api';
 import ErrorState from '../components/ErrorState';
 import { useTheme } from '../theme/ThemeContext';
 import { hapticSelect, hapticSuccess } from '../utils/haptics';
+import MatchBellIcon from '../components/MatchBellIcon';
 
 const HEADER_H  = 38;
-const MATCH_H   = 60;
+const MATCH_H   = 62;
 const DIVIDER_H = 32;
 
 function toLocalYMD(date) {
@@ -206,6 +207,8 @@ export default function TeamFixturesScreen({ route }) {
             )}
           </View>
         </View>
+
+        <MatchBellIcon match={m} size={18} style={styles.bellCol} />
       </TouchableOpacity>
     );
   }, [colors, isDark, navigation, leagueCode]);
@@ -250,6 +253,7 @@ const styles = StyleSheet.create({
   dateHeaderText: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
 
   matchRow:       { height: MATCH_H, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1 },
+  bellCol:        { width: 36, alignItems: 'center', justifyContent: 'center' },
   statusCol:      { width: 48, alignItems: 'center', justifyContent: 'center' },
   statusText:     { fontSize: 11, fontWeight: '700' },
   liveText:       { fontSize: 10, fontWeight: '800', color: '#EF4444' },

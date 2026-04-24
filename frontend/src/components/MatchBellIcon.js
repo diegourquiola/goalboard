@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
@@ -21,14 +21,18 @@ export default function MatchBellIcon({ match, size = 20, style }) {
   }
 
   if (loading) {
-    return <ActivityIndicator size="small" color={colors.accent} style={style} />;
+    return (
+      <View style={[{ alignItems: 'center', justifyContent: 'center' }, style]}>
+        <ActivityIndicator size="small" color={colors.accent} />
+      </View>
+    );
   }
 
   return (
     <TouchableOpacity
       onPress={handlePress}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      style={style}
+      style={[{ alignItems: 'center', justifyContent: 'center' }, style]}
     >
       <Ionicons
         name={subscribed ? 'notifications' : 'notifications-off-outline'}

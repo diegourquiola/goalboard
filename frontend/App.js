@@ -8,7 +8,7 @@ import { BlurView } from 'expo-blur';
 
 import LeaguesTab          from './src/screens/LeaguesTab';
 import TeamsTab            from './src/screens/TeamsTab';
-import FavoritesScreen     from './src/screens/FavoritesScreen';
+import FavoritesTab        from './src/screens/FavoritesTab';
 import MatchDetailScreen   from './src/screens/MatchDetailScreen';
 import TeamDetailScreen    from './src/screens/TeamDetailScreen';
 import TeamFixturesScreen  from './src/screens/TeamFixturesScreen';
@@ -71,7 +71,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Favorites"
-        component={FavoritesScreen}
+        component={FavoritesTab}
       />
     </Tab.Navigator>
   );
@@ -149,7 +149,7 @@ function AppContent() {
       }}
     >
       <Stack.Navigator screenOptions={{ headerShown: false, headerBackTitle: 'Back' }}>
-        <Stack.Screen name="MainTabs" component={MainTabs} />
+        <Stack.Screen name="MainTabs" component={MainTabs} options={{ gestureEnabled: false }} />
         <Stack.Screen
           name="MatchDetail"
           component={MatchDetailScreen}

@@ -141,7 +141,7 @@ export default function LeagueDetailScreen({ route, navigation }) {
             if (!user) { setShowAuthGate(true); return; }
             toggleFavorite({ type: 'league', externalId: leagueId, name: leagueName, logo: league.logo ?? null });
           }}
-          style={{ marginRight: 8 }}
+          style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 4 }}
         >
           <Ionicons
             name={favorited ? 'heart' : 'heart-outline'}
@@ -151,7 +151,7 @@ export default function LeagueDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       ),
     });
-  }, [favorited, user]);
+  }, [favorited, user, toggleFavorite, leagueId, leagueName]);
 
   const renderScene = useCallback(({ route: r }) => {
     if (r.key === 'standings')  return <StandingsView leagueCode={league.code} />;

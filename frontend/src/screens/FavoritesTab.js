@@ -4,8 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import LeaguesListScreen from './LeaguesListScreen';
-import LeagueDetailScreen from './LeagueDetailScreen';
+import FavoritesScreen from './FavoritesScreen';
 
 const Stack = createNativeStackNavigator();
 const logo  = require('../../assets/logo.png');
@@ -31,7 +30,7 @@ function ProfileIcon({ navigation, colors }) {
   );
 }
 
-export default function LeaguesTab() {
+export default function FavoritesTab() {
   const { colors } = useTheme();
 
   return (
@@ -45,24 +44,12 @@ export default function LeaguesTab() {
       }}
     >
       <Stack.Screen
-        name="LeaguesList"
-        component={LeaguesListScreen}
+        name="FavoritesList"
+        component={FavoritesScreen}
         options={({ navigation }) => ({
           headerTitle: () => <AppHeaderTitle colors={colors} />,
           headerTitleAlign: 'left',
           headerLeft: () => null,
-          headerRight: () => <ProfileIcon navigation={navigation} colors={colors} />,
-        })}
-      />
-      <Stack.Screen
-        name="LeagueDetail"
-        component={LeagueDetailScreen}
-        options={({ route, navigation }) => ({
-          headerTitle: () => (
-            route.params?.league?.logo
-              ? <Image source={{ uri: route.params.league.logo }} style={styles.leagueLogo} resizeMode="contain" />
-              : null
-          ),
           headerRight: () => <ProfileIcon navigation={navigation} colors={colors} />,
         })}
       />
@@ -71,9 +58,8 @@ export default function LeaguesTab() {
 }
 
 const styles = StyleSheet.create({
-  appHeader:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  appLogo:    { width: 32, height: 32, borderRadius: 8 },
-  appName:    { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
-  leagueLogo: { width: 36, height: 36 },
-  iconBtn:    { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+  appHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  appLogo:   { width: 32, height: 32, borderRadius: 8 },
+  appName:   { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
+  iconBtn:   { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
 });

@@ -20,39 +20,39 @@ export function useFavorites() {
 
   useEffect(() => { fetchFavorites(); }, [fetchFavorites]);
 
-  function isFavorited(type, externalId) {
-    return favorites.some(f => f.type === type && f.external_id === externalId);
-  }
+  const isFavorited = useCallback((type, externalId) => {
+    return favorites.some(f => f.type === type && String(f.external_id) === String(externalId));
+  }, [favorites]);
 
-  async function addFavorite({ type, externalId, name, logo }) {
+  const addFavorite = useCallback(async ({ type, externalId, name, logo }) => {
     if (!user) return false;
     const { error } = await supabase.from('user_favorites').insert({
       user_id: user.id,
       type,
-      external_id: externalId,
+      external_id: String(externalId),
       name,
       logo: logo ?? null,
     });
     if (!error) await fetchFavorites();
     return !error;
-  }
+  }, [user, fetchFavorites]);
 
-  async function removeFavorite(type, externalId) {
+  const removeFavorite = useCallback(async (type, externalId) => {
     const { error } = await supabase
       .from('user_favorites')
       .delete()
       .eq('type', type)
-      .eq('external_id', externalId);
+      .eq('external_id', String(externalId));
     if (!error) await fetchFavorites();
-  }
+  }, [fetchFavorites]);
 
-  async function toggleFavorite(item) {
+  const toggleFavorite = useCallback(async (item) => {
     if (isFavorited(item.type, item.externalId)) {
       await removeFavorite(item.type, item.externalId);
     } else {
       await addFavorite(item);
     }
-  }
+  }, [isFavorited, addFavorite, removeFavorite]);
 
   return { favorites, loading, isFavorited, addFavorite, removeFavorite, toggleFavorite, refresh: fetchFavorites };
 }
