@@ -54,20 +54,8 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen
-        name="Leagues"
-        component={LeaguesTab}
-        listeners={({ navigation }) => ({
-          tabPress: () => navigation.navigate('Leagues', { screen: 'LeaguesList' }),
-        })}
-      />
-      <Tab.Screen
-        name="Teams"
-        component={TeamsTab}
-        listeners={({ navigation }) => ({
-          tabPress: () => navigation.navigate('Teams', { screen: 'TeamsList' }),
-        })}
-      />
+      <Tab.Screen name="Leagues"   component={LeaguesTab} />
+      <Tab.Screen name="Teams"     component={TeamsTab} />
       <Tab.Screen
         name="Favorites"
         component={FavoritesTab}
