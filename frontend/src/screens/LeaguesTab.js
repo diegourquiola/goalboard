@@ -75,5 +75,5 @@ const styles = StyleSheet.create({
   appLogo:    { width: 32, height: 32, borderRadius: 8 },
   appName:    { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
   leagueLogo: { width: 36, height: 36 },
-  iconBtn:    { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+  iconBtn:    { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
 });

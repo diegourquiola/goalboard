@@ -4,6 +4,7 @@ import {
   StyleSheet, SectionList, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LEAGUES } from '../constants/leagues';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useFavorites } from '../hooks/useFavorites';
@@ -23,7 +24,7 @@ export default function FavoritesScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <SafeAreaView edges={['bottom']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <View style={[styles.center, { backgroundColor: colors.background }]}>
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in to see favorites</Text>
           <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
@@ -42,7 +43,7 @@ export default function FavoritesScreen() {
 
   if (loading && favorites.length === 0) {
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <SafeAreaView edges={['bottom']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <View style={[styles.center, { backgroundColor: colors.background }]}>
           <ActivityIndicator color={colors.accent} />
         </View>
@@ -61,7 +62,7 @@ export default function FavoritesScreen() {
 
   if (sections.length === 0) {
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <SafeAreaView edges={['bottom']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <View style={[styles.center, { backgroundColor: colors.background }]}>
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No favorites yet</Text>
           <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
@@ -80,8 +81,11 @@ export default function FavoritesScreen() {
         leagueLabel: null,
       });
     } else if (item.type === 'league') {
+      const knownLeague = LEAGUES.find(l => String(l.id) === String(item.external_id));
       navigation.navigate('LeagueDetail', {
-        league: { id: item.external_id, name: item.name, logo: item.logo },
+        league: knownLeague
+          ? { code: knownLeague.code, id: knownLeague.id, name: knownLeague.label, logo: knownLeague.logo }
+          : { id: item.external_id, name: item.name, logo: item.logo },
       });
     } else if (item.type === 'player') {
       navigation.navigate('PlayerDetail', {
@@ -112,7 +116,7 @@ export default function FavoritesScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['bottom']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <Text style={[styles.screenTitle, { color: colors.foreground }]}>Favorites</Text>
       <SectionList
         style={{ backgroundColor: colors.background }}

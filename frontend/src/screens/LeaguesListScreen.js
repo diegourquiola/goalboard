@@ -66,7 +66,7 @@ export default function LeaguesListScreen({ navigation }) {
             <TouchableOpacity
               key={item.id}
               style={[styles.resultRow, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => { hapticSelect(); onSelect({ code: String(item.id), label: item.name, logo: item.logo }); }}
+              onPress={() => { hapticSelect(); onSelect({ code: String(item.id), id: item.id, label: item.name, logo: item.logo }); }}
             >
               <View style={[styles.resultLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
                 {item.logo

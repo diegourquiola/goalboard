@@ -129,9 +129,12 @@ export default function LeagueDetailScreen({ route, navigation }) {
   const [showAuthGate, setShowAuthGate] = useState(false);
   const layout = useWindowDimensions();
 
-  const leagueId = league.id ?? league.code;
+  // Always use the numeric API id as the stable external identifier.
+  // league.id is set for both featured leagues (added to LEAGUES constant) and
+  // search results. Fall back to code only for legacy navigation paths.
+  const leagueId   = league.id ?? league.code;
   const leagueName = league.name ?? league.label;
-  const favorited = isFavorited('league', leagueId);
+  const favorited  = isFavorited('league', leagueId);
 
   useEffect(() => {
     navigation.setOptions({
