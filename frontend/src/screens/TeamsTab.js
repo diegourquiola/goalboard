@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import TeamsScreen from './TeamsScreen';
 
 const Stack = createNativeStackNavigator();
@@ -18,9 +19,10 @@ function AppHeaderTitle({ colors }) {
 }
 
 function ProfileIcon({ navigation, colors }) {
+  const { session } = useAuth();
   return (
     <TouchableOpacity
-      onPress={() => navigation.navigate('Profile')}
+      onPress={() => navigation.navigate(session ? 'Profile' : 'Auth')}
       style={[styles.iconBtn, { backgroundColor: 'rgba(128,128,128,0.1)' }]}
     >
       <Ionicons name="person-circle-outline" size={24} color={colors.foreground} />

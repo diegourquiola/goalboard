@@ -149,68 +149,63 @@ function AppContent() {
       }}
     >
       <Stack.Navigator screenOptions={{ headerShown: false, headerBackTitle: 'Back' }}>
-        {session ? (
-          <>
-            <Stack.Screen name="MainTabs"     component={MainTabs} />
-            <Stack.Screen
-              name="MatchDetail"
-              component={MatchDetailScreen}
-              options={{
-                headerShown: true,
-                title: 'Match',
-                headerStyle:      { backgroundColor: colors.background },
-                headerTintColor:  colors.foreground,
-                headerTitleStyle: { fontWeight: '800', fontSize: 16 },
-              }}
-            />
-            <Stack.Screen
-              name="TeamDetail"
-              component={TeamDetailScreen}
-              options={{
-                headerShown: true,
-                title: 'Team',
-                headerStyle:      { backgroundColor: colors.background },
-                headerTintColor:  colors.foreground,
-                headerTitleStyle: { fontWeight: '800', fontSize: 16 },
-              }}
-            />
-            <Stack.Screen
-              name="TeamFixtures"
-              component={TeamFixturesScreen}
-              options={({ route }) => ({
-                headerShown: true,
-                title: route.params?.teamName ?? 'Fixtures',
-                headerStyle:      { backgroundColor: colors.background },
-                headerTintColor:  colors.foreground,
-                headerTitleStyle: { fontWeight: '800', fontSize: 16 },
-              })}
-            />
-            <Stack.Screen
-              name="PlayerDetail"
-              component={PlayerDetailScreen}
-              options={{
-                headerShown: true,
-                title: 'Player',
-                headerStyle:      { backgroundColor: colors.background },
-                headerTintColor:  colors.foreground,
-                headerTitleStyle: { fontWeight: '800', fontSize: 16 },
-              }}
-            />
-            <Stack.Screen
-              name="Profile"
-              component={require('./src/screens/ProfileScreen').default}
-              options={{
-                headerShown: true,
-                title: 'Profile',
-                headerStyle:      { backgroundColor: colors.background },
-                headerTintColor:  colors.foreground,
-                headerTitleStyle: { fontWeight: '800', fontSize: 16 },
-              }}
-            />
-          </>
-        ) : (
-          <Stack.Screen name="Auth" component={AuthNavigator} />
-        )}
+        <Stack.Screen name="MainTabs" component={MainTabs} />
+        <Stack.Screen
+          name="MatchDetail"
+          component={MatchDetailScreen}
+          options={{
+            headerShown: true,
+            title: 'Match',
+            headerStyle:      { backgroundColor: colors.background },
+            headerTintColor:  colors.foreground,
+            headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+          }}
+        />
+        <Stack.Screen
+          name="TeamDetail"
+          component={TeamDetailScreen}
+          options={{
+            headerShown: true,
+            title: 'Team',
+            headerStyle:      { backgroundColor: colors.background },
+            headerTintColor:  colors.foreground,
+            headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+          }}
+        />
+        <Stack.Screen
+          name="TeamFixtures"
+          component={TeamFixturesScreen}
+          options={({ route }) => ({
+            headerShown: true,
+            title: route.params?.teamName ?? 'Fixtures',
+            headerStyle:      { backgroundColor: colors.background },
+            headerTintColor:  colors.foreground,
+            headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+          })}
+        />
+        <Stack.Screen
+          name="PlayerDetail"
+          component={PlayerDetailScreen}
+          options={{
+            headerShown: true,
+            title: 'Player',
+            headerStyle:      { backgroundColor: colors.background },
+            headerTintColor:  colors.foreground,
+            headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+          }}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={require('./src/screens/ProfileScreen').default}
+          options={{
+            headerShown: true,
+            title: 'Profile',
+            headerStyle:      { backgroundColor: colors.background },
+            headerTintColor:  colors.foreground,
+            headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+          }}
+        />
+        <Stack.Screen name="Auth" component={AuthNavigator} />
       </Stack.Navigator>
     </NavigationContainer>
   );
