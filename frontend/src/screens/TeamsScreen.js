@@ -151,6 +151,8 @@ export default function TeamsScreen() {
   const [refreshing, setRefreshing]     = useState(false);
   const [nextFixture, setNextFixture]   = useState(null);
   const [loadingNext, setLoadingNext]   = useState(false);
+  const [lastFixtures, setLastFixtures] = useState([]);
+  const [loadingLast, setLoadingLast]   = useState(false);
   const [teamQuery, setTeamQuery]       = useState('');
   const [teamResults, setTeamResults]   = useState([]);
   const [searching, setSearching]       = useState(false);
@@ -204,15 +206,21 @@ export default function TeamsScreen() {
     inputRef.current?.blur();
   }, []);
 
-  // Fetch next fixture whenever selected team changes
+  // Fetch next fixture and last 5 results whenever selected team changes
   useEffect(() => {
     if (!selectedTeam?.team_id) return;
     setLoadingNext(true);
+    setLoadingLast(true);
     setNextFixture(null);
+    setLastFixtures([]);
     api.get(`/api/teams/${selectedTeam.team_id}/next`)
       .then(r => setNextFixture(Object.keys(r.data).length > 0 ? r.data : null))
       .catch(() => setNextFixture(null))
       .finally(() => setLoadingNext(false));
+    api.get(`/api/teams/${selectedTeam.team_id}/last-fixtures`, { params: { last: 5 } })
+      .then(r => setLastFixtures(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setLastFixtures([]))
+      .finally(() => setLoadingLast(false));
   }, [selectedTeam?.team_id]);
 
   const onRefresh = useCallback(async () => {
@@ -242,22 +250,17 @@ export default function TeamsScreen() {
   }, [stats, activeCat]);
 
   const formBadges = useMemo(() => {
-    if (!stats) return [];
-    const { wins, draws, losses, gamesPlayed } = stats;
-    if (gamesPlayed === 0) return [];
-    const total = Math.min(5, gamesPlayed);
-    let w = wins, d = draws;
-    const ratio = total / gamesPlayed;
-    w = Math.round(w * ratio);
-    d = Math.round(d * ratio);
-    let l = total - w - d;
-    if (l < 0) { d += l; l = 0; }
-    const badges = [];
-    for (let i = 0; i < w; i++) badges.push('W');
-    for (let i = 0; i < d; i++) badges.push('D');
-    for (let i = 0; i < l; i++) badges.push('L');
-    return badges.slice(0, 5);
-  }, [stats]);
+    if (lastFixtures.length === 0) return [];
+    return lastFixtures.map(f => {
+      const homeId = f.teams?.home?.id;
+      const hScore = f.score?.home;
+      const aScore = f.score?.away;
+      if (hScore == null || aScore == null) return null;
+      if (hScore === aScore) return 'D';
+      const isHome = homeId === selectedTeam?.team_id;
+      return (isHome ? hScore > aScore : aScore > hScore) ? 'W' : 'L';
+    }).filter(Boolean);
+  }, [lastFixtures, selectedTeam?.team_id]);
 
   const chartLabel = activeCat === 'Goals Scored'
     ? `GOALS SCORED (${stats?.gamesPlayed ?? 0} GP)`
@@ -481,23 +484,25 @@ export default function TeamsScreen() {
           <View style={styles.section}>
             <View style={styles.sectionTitleRow}>
               <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>RECENT FORM</Text>
-              <Text style={[styles.sectionBadge, { color: colors.mutedForeground, borderColor: colors.border }]}>ALL COMPETITIONS</Text>
             </View>
-            <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.formBadges}>
-                {formBadges.length > 0
-                  ? formBadges.map((r, i) => (
-                    <View key={i} style={[styles.formBadge, { backgroundColor: r === 'W' ? colors.chartGreen : r === 'D' ? colors.mutedForeground : '#EF4444' }]}>
-                      <Text style={styles.formBadgeText}>{r}</Text>
-                    </View>
-                  ))
-                  : <Text style={[styles.formSub, { color: colors.mutedForeground }]}>No data</Text>}
-              </View>
-              <View style={styles.formStats}>
-                <Text style={[styles.formPoints, { color: colors.foreground }]}>{formPoints} Pts</Text>
-                <Text style={[styles.formSub, { color: colors.mutedForeground }]}>Last {formBadges.length} games</Text>
-              </View>
-            </View>
+            {loadingLast
+              ? <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 12 }} />
+              : <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={styles.formBadges}>
+                    {formBadges.length > 0
+                      ? formBadges.map((r, i) => (
+                        <View key={i} style={[styles.formBadge, { backgroundColor: r === 'W' ? colors.chartGreen : r === 'D' ? colors.mutedForeground : '#EF4444' }]}>
+                          <Text style={styles.formBadgeText}>{r}</Text>
+                        </View>
+                      ))
+                      : <Text style={[styles.formSub, { color: colors.mutedForeground }]}>No data</Text>}
+                  </View>
+                  <View style={styles.formStats}>
+                    <Text style={[styles.formPoints, { color: colors.foreground }]}>{formPoints} Pts</Text>
+                    <Text style={[styles.formSub, { color: colors.mutedForeground }]}>Last {formBadges.length} games</Text>
+                  </View>
+                </View>
+            }
           </View>
 
           {/* Stat Chips */}

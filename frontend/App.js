@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 
 import LeaguesTab          from './src/screens/LeaguesTab';
@@ -16,7 +16,6 @@ import PlayerDetailScreen  from './src/screens/PlayerDetailScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { AuthProvider } from './src/context/AuthContext';
 import { useAuth } from './src/context/AuthContext';
-import { useBiometrics } from './src/hooks/useBiometrics';
 
 const Tab       = createBottomTabNavigator();
 const Stack     = createNativeStackNavigator();
@@ -96,37 +95,10 @@ function AuthNavigator() {
 }
 
 function AppContent() {
-  const { session, loading } = useAuth();
+  const { loading } = useAuth();
   const { isDark, colors } = useTheme();
-  const { enabled: biometricsEnabled, authenticate } = useBiometrics();
-  const [locked, setLocked] = useState(false);
-  const [biometricChecked, setBiometricChecked] = useState(false);
 
-  useEffect(() => {
-    if (!loading) {
-      if (session && biometricsEnabled) {
-        setLocked(true);
-        authenticate().then(success => {
-          if (success) setLocked(false);
-          setBiometricChecked(true);
-        });
-      } else {
-        setBiometricChecked(true);
-      }
-    }
-  }, [loading]);
-
-  if (loading || !biometricChecked) return null;
-
-  if (locked) {
-    return (
-      <View style={[styles.lockScreen, { backgroundColor: colors.background }]}>
-        <TouchableOpacity onPress={() => authenticate().then(s => { if (s) setLocked(false); })}>
-          <Text style={[styles.unlockText, { color: colors.accent }]}>Tap to unlock with Face ID</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  if (loading) return null;
 
   return (
     <NavigationContainer
@@ -221,7 +193,4 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({
-  lockScreen:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  unlockText:  { fontSize: 16, fontWeight: '600' },
-});
+const styles = StyleSheet.create({});

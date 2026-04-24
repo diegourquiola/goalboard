@@ -38,8 +38,18 @@ export default function SignupScreen({ navigation }) {
     }
   }, [googleResponse]);
 
+  function validatePassword(pwd) {
+    if (pwd.length < 8)              return 'Password must be at least 8 characters.';
+    if (!/[a-zA-Z]/.test(pwd))       return 'Password must include at least one letter.';
+    if (!/[0-9]/.test(pwd))          return 'Password must include at least one number.';
+    if (!/[^a-zA-Z0-9]/.test(pwd))   return 'Password must include at least one symbol (e.g. !@#$).';
+    return null;
+  }
+
   async function handleSignup() {
     if (!email || !password || !name) return;
+    const pwdError = validatePassword(password);
+    if (pwdError) { Alert.alert('Weak password', pwdError); return; }
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email,
@@ -99,7 +109,7 @@ export default function SignupScreen({ navigation }) {
       />
       <TextInput
         style={[styles.input, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
-        placeholder="Password (min 6 characters)"
+        placeholder="Password (8+ chars, letter, number, symbol)"
         placeholderTextColor={colors.mutedForeground}
         secureTextEntry
         value={password}
