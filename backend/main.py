@@ -1,9 +1,22 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routers import standings, matches, teams, leagues, fixtures, top_scorers, squad, players, push_tokens
+from services.scheduler import get_scheduler
+from services.notification_service import poll_live_events
 
-app = FastAPI(title="GoalBoard API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app):
+    scheduler = get_scheduler()
+    scheduler.add_job(poll_live_events, "interval", seconds=60, id="live_events")
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+
+app = FastAPI(title="GoalBoard API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -13,14 +26,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(standings.router, prefix="/api")
-app.include_router(matches.router,   prefix="/api")
-app.include_router(teams.router,     prefix="/api")
-app.include_router(leagues.router,   prefix="/api")
-app.include_router(fixtures.router,  prefix="/api")
-app.include_router(top_scorers.router, prefix="/api")
-app.include_router(squad.router, prefix="/api")
-app.include_router(players.router, prefix="/api")
+app.include_router(standings.router,    prefix="/api")
+app.include_router(matches.router,      prefix="/api")
+app.include_router(teams.router,        prefix="/api")
+app.include_router(leagues.router,      prefix="/api")
+app.include_router(fixtures.router,     prefix="/api")
+app.include_router(top_scorers.router,  prefix="/api")
+app.include_router(squad.router,        prefix="/api")
+app.include_router(players.router,      prefix="/api")
 app.include_router(push_tokens.router)
 
 
