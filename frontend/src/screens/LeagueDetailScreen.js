@@ -146,7 +146,7 @@ export default function LeagueDetailScreen({ route, navigation }) {
   const { colors } = useTheme();
   const { user } = useAuth();
   const { isFavorited, toggleFavorite } = useFavorites();
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(1);
   const [showAuthGate, setShowAuthGate] = useState(false);
   const layout = useWindowDimensions();
   const isCL = league.code === 'CL';
