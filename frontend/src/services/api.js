@@ -6,7 +6,7 @@ import axios from 'axios';
  * so the base URL only needs to change in one place.
  */
 const api = axios.create({
-  baseURL: 'https://goalboard-xreq.onrender.com',
+  baseURL: process.env.EXPO_PUBLIC_BACKEND_URL,
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
 });
