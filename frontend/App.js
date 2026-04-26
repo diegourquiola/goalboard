@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { BlurView } from 'expo-blur';
 
+import HomeTab             from './src/screens/HomeTab';
 import LeaguesTab          from './src/screens/LeaguesTab';
 import TeamsTab            from './src/screens/TeamsTab';
 import FavoritesTab        from './src/screens/FavoritesTab';
@@ -31,6 +32,7 @@ function MainTabs() {
         headerShown: false,
         tabBarIcon: ({ focused, color, size }) => {
           const icons = {
+            Home:      focused ? 'home'         : 'home-outline',
             Leagues:   focused ? 'trophy'       : 'trophy-outline',
             Teams:     focused ? 'people'       : 'people-outline',
             Favorites: focused ? 'heart'        : 'heart-outline',
@@ -55,6 +57,7 @@ function MainTabs() {
         },
       })}
     >
+      <Tab.Screen name="Home"      component={HomeTab} />
       <Tab.Screen name="Leagues"   component={LeaguesTab} />
       <Tab.Screen name="Teams"     component={TeamsTab} />
       <Tab.Screen
