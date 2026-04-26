@@ -5,7 +5,7 @@ from services.supabase_client import get_supabase
 
 router = APIRouter(tags=["push_tokens"])
 
-TEST_USER_ID = "debug-test-user"
+TEST_USER_ID = "00000000-0000-0000-0000-000000000001"
 
 @router.post("/api/push-token/test")
 def test_push_token_insert():
