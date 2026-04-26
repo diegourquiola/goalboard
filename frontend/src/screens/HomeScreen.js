@@ -95,7 +95,7 @@ function MatchRow({ match, leagueCode }) {
     if (!dateStr) return '';
     const d = new Date(dateStr);
     if (isNaN(d)) return '';
-    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false });
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
 
   const logoBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)';

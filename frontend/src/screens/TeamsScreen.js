@@ -65,7 +65,7 @@ function NextGameCard({ fixture, teamId, colors, isDark, onPress }) {
   const dateStr = fixture.date
     ? new Date(fixture.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
       + ' · '
-      + new Date(fixture.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false })
+      + new Date(fixture.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     : 'Date TBD';
 
   return (

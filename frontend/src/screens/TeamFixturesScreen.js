@@ -39,7 +39,7 @@ function formatKickoff(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   if (isNaN(d)) return '';
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false });
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
 export default function TeamFixturesScreen({ route }) {

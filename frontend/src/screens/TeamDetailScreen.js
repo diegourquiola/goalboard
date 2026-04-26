@@ -20,7 +20,7 @@ function formatFixtureDate(dateStr) {
   return (
     d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
     + ' · '
-    + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false })
+    + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   );
 }
 

@@ -57,7 +57,7 @@ function formatDateTime(dateStr) {
   return (
     d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
     + ' · '
-    + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false })
+    + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   );
 }
 
