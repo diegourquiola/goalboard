@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
 
   matchRow:       { height: MATCH_H, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1 },
   bellCol:        { width: 36, alignItems: 'center', justifyContent: 'center' },
-  statusCol:      { width: 48, alignItems: 'center', justifyContent: 'center' },
+  statusCol:      { width: 64, alignItems: 'center', justifyContent: 'center' },
   statusText:     { fontSize: 11, fontWeight: '700' },
   liveText:       { fontSize: 10, fontWeight: '800', color: '#EF4444' },
 

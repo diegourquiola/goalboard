@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   dateHeaderText: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
 
   matchRow:       { height: MATCH_H, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1 },
-  statusCol:      { width: 48, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  statusCol:      { width: 64, alignItems: 'center', justifyContent: 'center', gap: 3 },
   statusText:     { fontSize: 11, fontWeight: '700' },
   liveDot:        { width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' },
   liveText:       { fontSize: 10, fontWeight: '800', color: '#EF4444' },
