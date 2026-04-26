@@ -15,3 +15,8 @@ export const LEAGUE_ZONES = {
   BL1: { clSpots: 4, relegationStart: 17 },
   CL:  { clSpots: 8, playoffSpots: 24, relegationStart: null },
 };
+
+// Home tab featured leagues — separate from LEAGUES used by Leagues/Matches tabs
+export const HOME_FEATURED_IDS = new Set([39, 140, 78, 135, 61, 2, 253, 3, 848]);
+
+export const HOME_FEATURED_ORDER = [39, 140, 78, 135, 61, 2, 253, 3, 848];
