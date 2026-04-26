@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
 Notifications.setNotificationHandler({
@@ -24,7 +24,7 @@ export async function registerPushToken(backendUrl, accessToken) {
     }
 
     if (finalStatus !== 'granted') {
-      Alert.alert('PushToken', `Permission not granted: ${finalStatus}`);
+      console.log('[PushToken] permission not granted:', finalStatus);
       return;
     }
 
@@ -52,13 +52,10 @@ export async function registerPushToken(backendUrl, accessToken) {
       body: JSON.stringify({ token, platform: Platform.OS }),
     });
 
-    const responseText = await res.text().catch(() => '');
     if (!res.ok) {
-      Alert.alert('PushToken Failed', `Status ${res.status}\n${responseText}`);
-    } else {
-      Alert.alert('PushToken OK', `Registered!\n${token?.slice(0, 40)}`);
+      console.error('[PushToken] POST failed', res.status, await res.text().catch(() => ''));
     }
   } catch (e) {
-    Alert.alert('PushToken Error', String(e));
+    console.error('[PushToken] unexpected error:', e);
   }
 }

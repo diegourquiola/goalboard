@@ -16,7 +16,7 @@
     "@react-navigation/native-stack": "^7.14.11",
     "@supabase/supabase-js": "^2.104.1",
     "axios": "^1.13.6",
-    "expo": "~55.0.8",
+    "expo": "~55.0.0",
     "expo-apple-authentication": "~55.0.13",
     "expo-auth-session": "~55.0.15",
     "expo-blur": "~55.0.14",
@@ -38,5 +38,8 @@
     "react-native-url-polyfill": "^3.0.0",
     "react-native-web": "^0.21.0"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@react-native-community/cli": "^20.1.3"
+  }
 }
