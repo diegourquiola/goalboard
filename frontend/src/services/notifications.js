@@ -39,7 +39,7 @@ export async function registerPushToken(backendUrl, accessToken) {
   const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
   const token = tokenData.data;
 
-  await fetch(`${backendUrl}/api/push-token`, {
+  const res = await fetch(`${backendUrl}/api/push-token`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -47,4 +47,8 @@ export async function registerPushToken(backendUrl, accessToken) {
     },
     body: JSON.stringify({ token, platform: Platform.OS }),
   });
+
+  if (!res.ok) {
+    console.error('[PushToken] registration failed', res.status, await res.text().catch(() => ''));
+  }
 }

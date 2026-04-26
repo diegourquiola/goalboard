@@ -1,7 +1,10 @@
 import datetime
 import httpx
+import logging
 from services.supabase_client import get_supabase
 from services.football_api import _get
+
+logger = logging.getLogger(__name__)
 
 # In-memory state tracking per fixture
 _processed_events: dict[int, set] = {}
@@ -75,16 +78,21 @@ def _send_notifications(tokens: list[str], title: str, body: str) -> None:
     messages = [{"to": t, "title": title, "body": body, "sound": "default"} for t in tokens]
     try:
         with httpx.Client() as client:
-            client.post(EXPO_PUSH_URL, json=messages, timeout=10)
-    except Exception:
-        pass
+            resp = client.post(EXPO_PUSH_URL, json=messages, timeout=10)
+        result = resp.json()
+        logger.info("[Push] sent '%s' to %d token(s) → %s", title, len(tokens), result)
+    except Exception as e:
+        logger.error("[Push] failed to send '%s': %s", title, e)
 
 
 def poll_live_events() -> None:
     try:
         fixtures = _get_live_fixtures()
-    except Exception:
+    except Exception as e:
+        logger.error("[Poll] failed to fetch live fixtures: %s", e)
         return
+
+    logger.info("[Poll] %d live fixture(s)", len(fixtures))
 
     for fixture in fixtures:
         fixture_id  = fixture["fixture"]["id"]
@@ -95,7 +103,13 @@ def poll_live_events() -> None:
         home_score  = fixture["goals"]["home"] or 0
         away_score  = fixture["goals"]["away"] or 0
 
-        tokens = _get_tokens_for_fixture(fixture_id, home["id"], away["id"])
+        try:
+            tokens = _get_tokens_for_fixture(fixture_id, home["id"], away["id"])
+        except Exception as e:
+            logger.error("[Poll] token lookup failed for fixture %d: %s", fixture_id, e)
+            continue
+
+        logger.info("[Poll] fixture %d (%s vs %s, %s): %d token(s)", fixture_id, home["name"], away["name"], status, len(tokens))
         if not tokens:
             continue
 
