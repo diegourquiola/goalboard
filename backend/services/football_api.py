@@ -31,6 +31,15 @@ def _current_season() -> int:
 
 CURRENT_SEASON = _current_season()
 
+# Leagues that run on a calendar year (Jan–Dec) instead of a July–June season
+CALENDAR_YEAR_LEAGUE_IDS = {253, 71, 188, 262, 292, 307, 235}  # MLS, Brasileirão, Liga MX, Saudi, Eredivisie, ...
+
+def _get_season(league_id: int) -> int:
+    if league_id in CALENDAR_YEAR_LEAGUE_IDS:
+        today = datetime.date.today()
+        return today.year
+    return CURRENT_SEASON
+
 
 def _get(path: str, params: dict | None = None, ttl: int = 300) -> dict:
     cache_key = path
@@ -64,7 +73,7 @@ def _get_league_id(league_code: str) -> int:
 
 def get_standings(league_code: str) -> dict:
     league_id = _get_league_id(league_code)
-    raw = _get("/standings", params={"league": league_id, "season": CURRENT_SEASON}, ttl=300)
+    raw = _get("/standings", params={"league": league_id, "season": _get_season(league_id)}, ttl=300)
 
     # Transform to match frontend expectations
     response = raw.get("response", [])
@@ -207,7 +216,7 @@ def get_cl_bracket() -> dict:
 def get_matches(league_code: str, matchday: int | None = None, status: str | None = None,
                 date_from: str | None = None, date_to: str | None = None) -> list:
     league_id = _get_league_id(league_code)
-    params = {"league": league_id, "season": CURRENT_SEASON}
+    params = {"league": league_id, "season": _get_season(league_id)}
 
     if date_from:
         params["from"] = date_from
@@ -446,7 +455,7 @@ def get_top_scorers(league_code: str) -> list:
     league_id = _get_league_id(league_code)
     raw = _get(
         "/players/topscorers",
-        params={"league": league_id, "season": CURRENT_SEASON},
+        params={"league": league_id, "season": _get_season(league_id)},
         ttl=300,
     )
     result = []
@@ -617,7 +626,7 @@ def get_top_assists(league_code: str) -> list:
     league_id = _get_league_id(league_code)
     raw = _get(
         "/players/topassists",
-        params={"league": league_id, "season": CURRENT_SEASON},
+        params={"league": league_id, "season": _get_season(league_id)},
         ttl=300,
     )
     result = []

@@ -2,6 +2,17 @@ import datetime
 from fastapi import APIRouter, HTTPException, Query
 from services.football_api import _get, _parse_fixture
 
+
+def _flag_emoji(flag_url: str) -> str:
+    """Convert API-Football flag URL (e.g. .../flags/fr.svg) to flag emoji."""
+    if not flag_url:
+        return ""
+    code = flag_url.rstrip('/').split('/')[-1].replace('.svg', '').replace('.png', '')
+    if len(code) == 2 and code.isalpha():
+        c = code.upper()
+        return chr(0x1F1E0 + ord(c[0]) - 65) + chr(0x1F1E0 + ord(c[1]) - 65)
+    return ""
+
 router = APIRouter()
 
 HOME_FEATURED_IDS = {2, 3, 39, 61, 78, 135, 140, 253, 848}
@@ -33,7 +44,7 @@ def home_matches(date: str = Query(default=None)):
         league_name = league_info.get("name", "")
         league_logo = league_info.get("logo", "")
         country     = league_info.get("country", "")
-        flag        = league_info.get("flag") or ""
+        flag        = _flag_emoji(league_info.get("flag") or "")
 
         if league_id in HOME_FEATURED_IDS:
             if league_id not in featured_map:

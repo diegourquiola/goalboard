@@ -43,6 +43,19 @@ function formatKickoff(dateStr) {
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false });
 }
 
+function liveStatusLabel(match) {
+  const ss = match.status_short ?? '';
+  if (ss === 'HT')  return 'HT';
+  if (ss === 'ET')  return 'ET';
+  if (ss === 'BT')  return 'BT';
+  if (ss === 'P')   return 'PEN';
+  const m = match.minute;
+  if (!m) return 'LIVE';
+  if (ss === '1H' && m > 45) return `45+${m - 45}'`;
+  if (ss === '2H' && m > 90) return `90+${m - 90}'`;
+  return `${m}'`;
+}
+
 function PulsingDot() {
   const opacity = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -184,7 +197,7 @@ export default function AllMatchesView({ leagueCode }) {
           {isLive ? (
             <>
               <PulsingDot />
-              <Text style={styles.liveText}>{m.minute ? `${m.minute}'` : 'LIVE'}</Text>
+              <Text style={styles.liveText}>{liveStatusLabel(m)}</Text>
             </>
           ) : isFinished ? (
             <Text style={[styles.statusText, { color: colors.mutedForeground }]}>FT</Text>

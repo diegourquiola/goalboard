@@ -37,6 +37,19 @@ const STAT_LABELS = [
   'Passes %',
 ];
 
+function liveHeaderLabel(match) {
+  const ss = match.status_short ?? '';
+  if (ss === 'HT')  return 'LIVE · HT';
+  if (ss === 'ET')  return 'LIVE · ET';
+  if (ss === 'BT')  return 'LIVE · BT';
+  if (ss === 'P')   return 'LIVE · PEN';
+  const m = match.minute;
+  if (!m) return 'LIVE';
+  if (ss === '1H' && m > 45) return `LIVE · 45+${m - 45}'`;
+  if (ss === '2H' && m > 90) return `LIVE · 90+${m - 90}'`;
+  return `LIVE · ${m}'`;
+}
+
 function formatDateTime(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -405,7 +418,7 @@ export default function MatchDetailScreen({ route }) {
                      }]}
                    >
                      <Text style={[s.tablePos, { color: colors.accent }]}>{row.position}</Text>
-                     <View style={[s.tableLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                     <View style={[s.tableLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.05)' }]}>
                        {row.team_logo
                          ? <Image source={{ uri: row.team_logo }} style={s.tableTeamLogo} />
                          : <Text style={{ fontSize: 8 }}>⚽</Text>}
@@ -614,7 +627,7 @@ export default function MatchDetailScreen({ route }) {
                    (lineup.substitutes ?? []).length > 0 && (
                      <View key={`subs-${lineup.team_id}`} style={[s.lineupSection, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 16 }]}>
                        <View style={[s.lineupHeader, { borderBottomColor: colors.border }]}>
-                         <View style={[s.lineupLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                         <View style={[s.lineupLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.05)' }]}>
                            {lineup.team_logo
                              ? <Image source={{ uri: lineup.team_logo }} style={s.lineupTeamLogo} />
                              : <Text style={{ fontSize: 12 }}>⚽</Text>}
@@ -643,7 +656,7 @@ export default function MatchDetailScreen({ route }) {
                              }]}
                            >
                              <Text style={[s.playerNum, { color: colors.mutedForeground }]}>{player.number ?? '–'}</Text>
-                             <View style={[s.playerPhotoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                             <View style={[s.playerPhotoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.05)' }]}>
                                {player.photo
                                  ? <Image source={{ uri: player.photo }} style={s.playerPhoto} />
                                  : <View style={s.playerPhotoPlaceholder} />}
@@ -703,7 +716,7 @@ export default function MatchDetailScreen({ route }) {
             activeOpacity={0.7}
             onPress={() => match.teams?.home && navigateToTeam(match.teams.home, standings.find(r => r.team_id === homeId))}
           >
-            <View style={[s.teamLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+            <View style={[s.teamLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.05)' }]}>
               {match.teams?.home?.logo
                 ? <Image source={{ uri: match.teams.home.logo }} style={s.teamLogo} />
                 : <Text style={s.emoji}>⚽</Text>}
@@ -723,7 +736,7 @@ export default function MatchDetailScreen({ route }) {
             )}
             {isLive && (
               <Text style={[s.liveLabel, { color: colors.destructive }]}>
-                LIVE {match.minute ? `${match.minute}'` : ''}
+                {liveHeaderLabel(match)}
               </Text>
             )}
           </View>
@@ -733,7 +746,7 @@ export default function MatchDetailScreen({ route }) {
             activeOpacity={0.7}
             onPress={() => match.teams?.away && navigateToTeam(match.teams.away, standings.find(r => r.team_id === awayId))}
           >
-            <View style={[s.teamLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+            <View style={[s.teamLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.05)' }]}>
               {match.teams?.away?.logo
                 ? <Image source={{ uri: match.teams.away.logo }} style={s.teamLogo} />
                 : <Text style={s.emoji}>⚽</Text>}

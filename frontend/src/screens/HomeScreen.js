@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, Image, TouchableOpacity, ScrollView,
-  StyleSheet, RefreshControl, Modal, Pressable,
+  StyleSheet, RefreshControl, Modal, Pressable, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -57,6 +57,21 @@ function buildCalendarDays(year, month) {
   return cells;
 }
 
+// ─── Live status label ────────────────────────────────────────────────────────
+
+function liveStatusLabel(match) {
+  const ss = match.status_short ?? '';
+  if (ss === 'HT')  return 'HT';
+  if (ss === 'ET')  return 'ET';
+  if (ss === 'BT')  return 'BT';
+  if (ss === 'P')   return 'PEN';
+  const m = match.minute;
+  if (!m) return 'LIVE';
+  if (ss === '1H' && m > 45) return `45+${m - 45}'`;
+  if (ss === '2H' && m > 90) return `90+${m - 90}'`;
+  return `${m}'`;
+}
+
 // ─── Match row (same visual pattern as AllMatchesView) ───────────────────────
 
 function MatchRow({ match, leagueCode }) {
@@ -83,6 +98,8 @@ function MatchRow({ match, leagueCode }) {
     return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false });
   }
 
+  const logoBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)';
+
   return (
     <TouchableOpacity
       style={[
@@ -99,7 +116,7 @@ function MatchRow({ match, leagueCode }) {
         {isLive ? (
           <>
             <View style={styles.liveDot} />
-            <Text style={styles.liveText}>{match.minute ? `${match.minute}'` : 'LIVE'}</Text>
+            <Text style={styles.liveText}>{liveStatusLabel(match)}</Text>
           </>
         ) : isFinished ? (
           <Text style={[styles.statusText, { color: colors.mutedForeground }]}>FT</Text>
@@ -114,7 +131,7 @@ function MatchRow({ match, leagueCode }) {
 
       <View style={styles.teamsCol}>
         <View style={styles.teamLine}>
-          <View style={[styles.logoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
+          <View style={[styles.logoWrap, { backgroundColor: logoBg }]}>
             {homeLogo ? <Image source={{ uri: homeLogo }} style={styles.teamLogo} /> : <Text style={styles.emoji}>⚽</Text>}
           </View>
           <Text style={[styles.teamName, { color: colors.foreground }, homeWin && styles.winner]} numberOfLines={1}>{home}</Text>
@@ -125,7 +142,7 @@ function MatchRow({ match, leagueCode }) {
           )}
         </View>
         <View style={styles.teamLine}>
-          <View style={[styles.logoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
+          <View style={[styles.logoWrap, { backgroundColor: logoBg }]}>
             {awayLogo ? <Image source={{ uri: awayLogo }} style={styles.teamLogo} /> : <Text style={styles.emoji}>⚽</Text>}
           </View>
           <Text style={[styles.teamName, { color: colors.foreground }, awayWin && styles.winner]} numberOfLines={1}>{away}</Text>
@@ -145,15 +162,18 @@ function MatchRow({ match, leagueCode }) {
 // ─── Featured league block ────────────────────────────────────────────────────
 
 function FeaturedLeagueBlock({ league, isFavorited, onToggleFavorite }) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const favorited = isFavorited('league', league.league_id);
+  const leagueBg = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.04)';
 
   return (
     <View style={[styles.leagueBlock, { borderColor: colors.border }]}>
       <View style={[styles.leagueHeader, { borderBottomColor: colors.border }]}>
         <View style={styles.leagueHeaderLeft}>
           {league.league_logo ? (
-            <Image source={{ uri: league.league_logo }} style={styles.leagueLogo} resizeMode="contain" />
+            <View style={[styles.leagueLogoWrap, { backgroundColor: leagueBg }]}>
+              <Image source={{ uri: league.league_logo }} style={styles.leagueLogo} resizeMode="contain" />
+            </View>
           ) : null}
           <View>
             <Text style={[styles.leagueName, { color: colors.foreground }]}>{league.league_name}</Text>
@@ -177,7 +197,11 @@ function FeaturedLeagueBlock({ league, isFavorited, onToggleFavorite }) {
         </TouchableOpacity>
       </View>
       {league.matches.map(m => (
-        <MatchRow key={m.id ?? `${m.date}-${m.teams?.home?.name}`} match={m} />
+        <MatchRow
+          key={m.id ?? `${m.date}-${m.teams?.home?.name}`}
+          match={m}
+          leagueCode={String(league.league_id)}
+        />
       ))}
     </View>
   );
@@ -186,7 +210,7 @@ function FeaturedLeagueBlock({ league, isFavorited, onToggleFavorite }) {
 // ─── Country section (collapsible) ───────────────────────────────────────────
 
 function CountrySection({ country, isFavorited }) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const matchCount = useMemo(
     () => country.leagues.reduce((sum, l) => sum + l.matches.length, 0),
     [country.leagues]
@@ -198,6 +222,7 @@ function CountrySection({ country, isFavorited }) {
   );
 
   const [expanded, setExpanded] = useState(hasAnyFavorite);
+  const leagueBg = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.04)';
 
   return (
     <View style={[styles.countryBlock, { borderColor: colors.border }]}>
@@ -208,7 +233,7 @@ function CountrySection({ country, isFavorited }) {
       >
         <View style={styles.countryLeft}>
           {country.country_flag ? (
-            <Image source={{ uri: country.country_flag }} style={styles.countryFlag} resizeMode="contain" />
+            <Text style={styles.flagEmoji}>{country.country_flag}</Text>
           ) : (
             <View style={[styles.countryFlagPlaceholder, { backgroundColor: colors.muted }]} />
           )}
@@ -228,12 +253,18 @@ function CountrySection({ country, isFavorited }) {
         <View key={league.league_id}>
           <View style={[styles.innerLeagueHeader, { borderBottomColor: colors.border, borderTopColor: colors.border }]}>
             {league.league_logo ? (
-              <Image source={{ uri: league.league_logo }} style={styles.innerLeagueLogo} resizeMode="contain" />
+              <View style={[styles.innerLeagueLogoWrap, { backgroundColor: leagueBg }]}>
+                <Image source={{ uri: league.league_logo }} style={styles.innerLeagueLogo} resizeMode="contain" />
+              </View>
             ) : null}
             <Text style={[styles.innerLeagueName, { color: colors.mutedForeground }]}>{league.league_name}</Text>
           </View>
           {league.matches.map(m => (
-            <MatchRow key={m.id ?? `${m.date}-${m.teams?.home?.name}`} match={m} />
+            <MatchRow
+              key={m.id ?? `${m.date}-${m.teams?.home?.name}`}
+              match={m}
+              leagueCode={String(league.league_id)}
+            />
           ))}
         </View>
       ))}
@@ -245,12 +276,17 @@ function CountrySection({ country, isFavorited }) {
 
 function CalendarModal({ visible, selectedDate, onSelect, onClose }) {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
   const [viewYear,  setViewYear]  = useState(selectedDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(selectedDate.getMonth());
 
   const cells = useMemo(() => buildCalendarDays(viewYear, viewMonth), [viewYear, viewMonth]);
+
+  const cardWidth = Math.min(width - 40, 380);
+  const cellSize  = Math.floor((cardWidth - 32) / 7); // 32 = padding * 2
+  const bubbleSize = cellSize - 4;
 
   function prevMonth() {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
@@ -274,31 +310,31 @@ function CalendarModal({ visible, selectedDate, onSelect, onClose }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.calendarOverlay} onPress={onClose}>
-        <Pressable style={[styles.calendarCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Pressable style={[styles.calendarCard, { backgroundColor: colors.card, borderColor: colors.border, width: cardWidth }]}>
           {/* Month nav */}
           <View style={styles.calendarHeader}>
-            <TouchableOpacity onPress={prevMonth} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="chevron-back" size={20} color={colors.foreground} />
+            <TouchableOpacity onPress={prevMonth} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="chevron-back" size={22} color={colors.foreground} />
             </TouchableOpacity>
             <Text style={[styles.calendarMonthLabel, { color: colors.foreground }]}>
               {MONTH_NAMES[viewMonth]} {viewYear}
             </Text>
-            <TouchableOpacity onPress={nextMonth} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="chevron-forward" size={20} color={colors.foreground} />
+            <TouchableOpacity onPress={nextMonth} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="chevron-forward" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
 
           {/* Day-of-week headers */}
           <View style={styles.calendarWeekRow}>
             {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
-              <Text key={d} style={[styles.calendarWeekDay, { color: colors.mutedForeground }]}>{d}</Text>
+              <Text key={d} style={[styles.calendarWeekDay, { color: colors.mutedForeground, width: cellSize }]}>{d}</Text>
             ))}
           </View>
 
           {/* Day grid */}
           <View style={styles.calendarGrid}>
             {cells.map((day, idx) => {
-              if (!day) return <View key={`e-${idx}`} style={styles.calendarCell} />;
+              if (!day) return <View key={`e-${idx}`} style={{ width: cellSize, height: cellSize }} />;
               const cellDate = new Date(viewYear, viewMonth, day);
               cellDate.setHours(0, 0, 0, 0);
               const isToday    = cellDate.getTime() === today.getTime();
@@ -306,19 +342,22 @@ function CalendarModal({ visible, selectedDate, onSelect, onClose }) {
               return (
                 <TouchableOpacity
                   key={day}
-                  style={[
-                    styles.calendarCell,
-                    isSelected && { backgroundColor: colors.accent, borderRadius: 20 },
-                    !isSelected && isToday && { borderRadius: 20, borderWidth: 1, borderColor: colors.accent },
-                  ]}
+                  style={{ width: cellSize, height: cellSize, alignItems: 'center', justifyContent: 'center' }}
                   onPress={() => handleDayPress(day)}
                 >
-                  <Text style={[
-                    styles.calendarDayText,
-                    { color: isSelected ? '#fff' : isToday ? colors.accent : colors.foreground },
+                  <View style={[
+                    styles.calendarDayBubble,
+                    { width: bubbleSize, height: bubbleSize, borderRadius: bubbleSize / 2 },
+                    isSelected && { backgroundColor: colors.accent },
+                    !isSelected && isToday && { borderWidth: 2, borderColor: colors.accent },
                   ]}>
-                    {day}
-                  </Text>
+                    <Text style={[
+                      styles.calendarDayText,
+                      { color: isSelected ? '#fff' : isToday ? colors.accent : colors.foreground },
+                    ]}>
+                      {day}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -359,6 +398,22 @@ export default function HomeScreen() {
 
   useEffect(() => { fetchData(selectedDate); }, [selectedDate]);
 
+  // Auto-refresh every 60s when there are live matches
+  const hasLiveMatches = useMemo(() => {
+    if (!data) return false;
+    const allMatches = [
+      ...(data.featured ?? []).flatMap(l => l.matches),
+      ...(data.countries ?? []).flatMap(c => c.leagues.flatMap(l => l.matches)),
+    ];
+    return allMatches.some(m => (m.status ?? '').toLowerCase() === 'live');
+  }, [data]);
+
+  useEffect(() => {
+    if (!hasLiveMatches) return;
+    const id = setInterval(() => fetchData(selectedDate), 60_000);
+    return () => clearInterval(id);
+  }, [hasLiveMatches, selectedDate, fetchData]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchData(selectedDate);
@@ -371,7 +426,19 @@ export default function HomeScreen() {
     setSelectedDate(next);
   }
 
-  const isEmpty = data && data.featured.length === 0 && data.countries.length === 0;
+  // Sort featured leagues so those with live matches come first
+  const sortedFeatured = useMemo(() => {
+    if (!data?.featured) return [];
+    return [...data.featured].sort((a, b) => {
+      const aLive = a.matches.some(m => (m.status ?? '').toLowerCase() === 'live');
+      const bLive = b.matches.some(m => (m.status ?? '').toLowerCase() === 'live');
+      if (aLive && !bLive) return -1;
+      if (!aLive && bLive) return 1;
+      return 0;
+    });
+  }, [data]);
+
+  const isEmpty = data && sortedFeatured.length === 0 && (data.countries ?? []).length === 0;
 
   return (
     <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: colors.background }]}>
@@ -408,8 +475,8 @@ export default function HomeScreen() {
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No matches on this date.</Text>
           )}
 
-          {/* Featured leagues */}
-          {data?.featured.map(league => (
+          {/* Featured leagues (live first) */}
+          {sortedFeatured.map(league => (
             <FeaturedLeagueBlock
               key={league.league_id}
               league={league}
@@ -419,7 +486,7 @@ export default function HomeScreen() {
           ))}
 
           {/* Country sections */}
-          {data?.countries.map(country => (
+          {(data?.countries ?? []).map(country => (
             <CountrySection
               key={country.country}
               country={country}
@@ -450,7 +517,8 @@ const styles = StyleSheet.create({
   leagueBlock:       { borderBottomWidth: 1 },
   leagueHeader:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 },
   leagueHeaderLeft:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  leagueLogo:        { width: 28, height: 28 },
+  leagueLogoWrap:    { width: 32, height: 32, borderRadius: 6, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  leagueLogo:        { width: 26, height: 26 },
   leagueName:        { fontSize: 14, fontWeight: '700' },
   leagueCountry:     { fontSize: 11, fontWeight: '500' },
 
@@ -459,11 +527,12 @@ const styles = StyleSheet.create({
   countryRow:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   countryLeft:            { flexDirection: 'row', alignItems: 'center', gap: 12 },
   countryRight:           { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  countryFlag:            { width: 28, height: 20, borderRadius: 3 },
+  flagEmoji:              { fontSize: 24 },
   countryFlagPlaceholder: { width: 28, height: 20, borderRadius: 3 },
   countryName:            { fontSize: 15, fontWeight: '600' },
   matchCount:             { fontSize: 13, fontWeight: '600' },
   innerLeagueHeader:      { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 1, borderBottomWidth: 1 },
+  innerLeagueLogoWrap:    { width: 22, height: 22, borderRadius: 4, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   innerLeagueLogo:        { width: 18, height: 18 },
   innerLeagueName:        { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
 
@@ -486,12 +555,12 @@ const styles = StyleSheet.create({
 
   // Calendar modal
   calendarOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  calendarCard:       { width: 320, borderRadius: 16, borderWidth: 1, padding: 16 },
-  calendarHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  calendarMonthLabel: { fontSize: 16, fontWeight: '700' },
+  calendarCard:       { borderRadius: 20, borderWidth: 1, padding: 16 },
+  calendarHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  calendarMonthLabel: { fontSize: 17, fontWeight: '700' },
   calendarWeekRow:    { flexDirection: 'row', marginBottom: 4 },
-  calendarWeekDay:    { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700' },
+  calendarWeekDay:    { textAlign: 'center', fontSize: 11, fontWeight: '700' },
   calendarGrid:       { flexDirection: 'row', flexWrap: 'wrap' },
-  calendarCell:       { width: '14.285%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
+  calendarDayBubble:  { alignItems: 'center', justifyContent: 'center' },
   calendarDayText:    { fontSize: 14, fontWeight: '500' },
 });
