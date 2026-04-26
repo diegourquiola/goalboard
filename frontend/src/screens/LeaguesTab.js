@@ -32,7 +32,7 @@ function ProfileIcon({ navigation, colors }) {
 }
 
 export default function LeaguesTab() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   return (
     <Stack.Navigator
@@ -60,7 +60,11 @@ export default function LeaguesTab() {
         options={({ route, navigation }) => ({
           headerTitle: () => (
             route.params?.league?.logo
-              ? <Image source={{ uri: route.params.league.logo }} style={styles.leagueLogo} resizeMode="contain" />
+              ? (
+                <View style={[styles.leagueLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.04)' }]}>
+                  <Image source={{ uri: route.params.league.logo }} style={styles.leagueLogo} resizeMode="contain" />
+                </View>
+              )
               : null
           ),
           headerRight: () => <ProfileIcon navigation={navigation} colors={colors} />,
@@ -74,6 +78,7 @@ const styles = StyleSheet.create({
   appHeader:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
   appLogo:    { width: 32, height: 32, borderRadius: 8 },
   appName:    { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
-  leagueLogo: { width: 36, height: 36 },
+  leagueLogoWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  leagueLogo: { width: 32, height: 32 },
   iconBtn:    { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
 });
