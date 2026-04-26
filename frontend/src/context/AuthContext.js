@@ -14,7 +14,8 @@ export function AuthProvider({ children }) {
         setSession(session);
         // Register/refresh push token on every app open if already signed in
         if (session) {
-          registerPushToken(process.env.EXPO_PUBLIC_BACKEND_URL, session.access_token);
+          registerPushToken(process.env.EXPO_PUBLIC_BACKEND_URL, session.access_token)
+            .catch(e => console.error('[PushToken] AuthContext getSession error:', e));
         }
       })
       .catch(() => {})
@@ -26,7 +27,7 @@ export function AuthProvider({ children }) {
         registerPushToken(
           process.env.EXPO_PUBLIC_BACKEND_URL,
           session.access_token,
-        );
+        ).catch(e => console.error('[PushToken] AuthContext SIGNED_IN error:', e));
       }
     });
 
