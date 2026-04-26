@@ -232,11 +232,6 @@ function CountrySection({ country, isFavorited }) {
         activeOpacity={0.7}
       >
         <View style={styles.countryLeft}>
-          {country.country_flag ? (
-            <Text style={styles.flagEmoji}>{country.country_flag}</Text>
-          ) : (
-            <View style={[styles.countryFlagPlaceholder, { backgroundColor: colors.muted }]} />
-          )}
           <Text style={[styles.countryName, { color: colors.foreground }]}>{country.country}</Text>
         </View>
         <View style={styles.countryRight}>
@@ -285,7 +280,7 @@ function CalendarModal({ visible, selectedDate, onSelect, onClose }) {
   const cells = useMemo(() => buildCalendarDays(viewYear, viewMonth), [viewYear, viewMonth]);
 
   const cardWidth = Math.min(width - 40, 380);
-  const cellSize  = Math.floor((cardWidth - 32) / 7); // 32 = padding * 2
+  const cellSize  = Math.floor((cardWidth - 34) / 7); // 34 = (padding + borderWidth) * 2
   const bubbleSize = cellSize - 4;
 
   function prevMonth() {
@@ -387,7 +382,8 @@ export default function HomeScreen() {
     setLoading(true);
     setError(null);
     try {
-      const { data: resp } = await api.get('/api/home/matches', { params: { date: toYMD(date) } });
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const { data: resp } = await api.get('/api/home/matches', { params: { date: toYMD(date), timezone: tz } });
       setData(resp);
     } catch (e) {
       setError(e.response?.data?.detail ?? 'Failed to load matches.');
@@ -527,8 +523,7 @@ const styles = StyleSheet.create({
   countryRow:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   countryLeft:            { flexDirection: 'row', alignItems: 'center', gap: 12 },
   countryRight:           { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  flagEmoji:              { fontSize: 24 },
-  countryFlagPlaceholder: { width: 28, height: 20, borderRadius: 3 },
+  
   countryName:            { fontSize: 15, fontWeight: '600' },
   matchCount:             { fontSize: 13, fontWeight: '600' },
   innerLeagueHeader:      { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 1, borderBottomWidth: 1 },

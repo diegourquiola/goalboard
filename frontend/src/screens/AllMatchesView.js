@@ -118,7 +118,9 @@ export default function AllMatchesView({ leagueCode }) {
     const todayStr = toLocalYMD(new Date());
     const groups = {};
     raw.forEach(m => {
-      const day = (m.date ?? m.match_date ?? '').split('T')[0];
+      const rawDate = m.date ?? m.match_date ?? '';
+      const localDate = new Date(rawDate);
+      const day = isNaN(localDate) ? rawDate.split('T')[0] : toLocalYMD(localDate);
       if (!groups[day]) groups[day] = [];
       groups[day].push(m);
     });

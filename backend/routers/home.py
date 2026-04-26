@@ -20,15 +20,19 @@ _FEATURED_ORDER   = [39, 140, 78, 135, 61, 2, 253, 3, 848]
 
 
 @router.get("/home/matches")
-def home_matches(date: str = Query(default=None)):
+def home_matches(date: str = Query(default=None), timezone: str = Query(default=None)):
     if not date:
         date = datetime.date.today().isoformat()
 
     today = datetime.date.today().isoformat()
     ttl   = 30 if date == today else 300
 
+    params = {"date": date}
+    if timezone:
+        params["timezone"] = timezone
+
     try:
-        raw = _get("/fixtures", {"date": date}, ttl=ttl)
+        raw = _get("/fixtures", params, ttl=ttl)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 

@@ -18,7 +18,10 @@ const FILTERS = [
 ];
 
 function toYMD(date) {
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 function getDateRange(filterKey) {
@@ -116,7 +119,8 @@ export default function MatchesScreen() {
     const groups = {};
     matches.forEach(m => {
       const raw = m.date ?? m.match_date ?? '';
-      const dayKey = raw.split('T')[0];
+      const localDate = new Date(raw);
+      const dayKey = isNaN(localDate) ? raw.split('T')[0] : toYMD(localDate);
       if (!groups[dayKey]) groups[dayKey] = [];
       groups[dayKey].push(m);
     });
