@@ -13,7 +13,7 @@ import { useTheme } from '../theme/ThemeContext';
 export default function FavoritesScreen() {
   const { user } = useAuth();
   const { favorites, loading, refresh } = useFavorites();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const navigation = useNavigation();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -109,7 +109,7 @@ export default function FavoritesScreen() {
         style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}
         onPress={() => handlePress(item)}
       >
-        <View style={[styles.logoWrap, { backgroundColor: colors.muted }]}>
+        <View style={[styles.logoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.88)' : colors.muted }]}>
           {item.logo
             ? <Image source={{ uri: item.logo }} style={styles.logo} resizeMode="contain" />
             : <Text style={[styles.logoInitial, { color: colors.mutedForeground }]}>

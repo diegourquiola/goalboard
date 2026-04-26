@@ -102,7 +102,7 @@ function StandingsView({ leagueCode }) {
               {ind && <View style={[s.indicator, { backgroundColor: ind }]} />}
               <Text style={[s.cell, s.pos, { color: colors.mutedForeground }]}>{row.position}</Text>
               <View style={s.teamCell}>
-                <View style={[s.logoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                <View style={[s.logoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.04)' }]}>
                   {row.team_logo
                     ? <Image source={{ uri: row.team_logo }} style={s.teamLogo} />
                     : <Text style={{ fontSize: 10 }}>⚽</Text>}
