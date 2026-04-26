@@ -5,6 +5,22 @@ from services.supabase_client import get_supabase
 
 router = APIRouter(tags=["push_tokens"])
 
+TEST_USER_ID = "debug-test-user"
+
+@router.post("/api/push-token/test")
+def test_push_token_insert():
+    """Temporary: test Supabase write without auth. Remove after debugging."""
+    try:
+        supabase = get_supabase()
+        supabase.table("push_tokens").upsert(
+            {"user_id": TEST_USER_ID, "token": "ExponentPushToken[TEST]", "platform": "ios"},
+            on_conflict="user_id,token",
+        ).execute()
+        rows = supabase.table("push_tokens").select("*").eq("user_id", TEST_USER_ID).execute()
+        return {"status": "ok", "rows": rows.data}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
 class PushTokenPayload(BaseModel):
     token: str
     platform: str
