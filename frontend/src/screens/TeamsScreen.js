@@ -75,7 +75,7 @@ function NextGameCard({ fixture, teamId, colors, isDark, onPress }) {
       style={[ngStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
     >
       <View style={ngStyles.row}>
-        <View style={[ngStyles.logoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+        <View style={[ngStyles.logoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.04)' }]}>
           {opponent?.logo
             ? <Image source={{ uri: opponent.logo }} style={ngStyles.logo} />
             : <Text style={{ fontSize: 16 }}>⚽</Text>}
@@ -301,11 +301,9 @@ export default function TeamsScreen() {
         />
         {searching
           ? <ActivityIndicator size="small" color={colors.accent} style={{ marginLeft: 8 }} />
-          : teamQuery.length > 0
-            ? <TouchableOpacity onPress={clearSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            : null
+          : <TouchableOpacity onPress={clearSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
+            </TouchableOpacity>
         }
       </TouchableOpacity>
 
@@ -356,7 +354,7 @@ export default function TeamsScreen() {
                 });
               }}
             >
-              <View style={[styles.searchLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+              <View style={[styles.searchLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.04)' }]}>
                 {t.logo
                   ? <Image source={{ uri: t.logo }} style={styles.searchLogo} resizeMode="contain" />
                   : <Text style={{ fontSize: 14 }}>⚽</Text>}
@@ -382,7 +380,7 @@ export default function TeamsScreen() {
       )}
 
       {!loading && !error && standings.length > 0 && (
-        <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
+        <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
 
           {/* Team Selector Card */}
           <View style={styles.section}>
@@ -391,7 +389,7 @@ export default function TeamsScreen() {
               onPress={() => { hapticSelect(); setTeamModalVisible(true); }}
             >
               <View style={styles.selectorInfo}>
-                <View style={[styles.logoWrapper, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                <View style={[styles.logoWrapper, { backgroundColor: isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.04)' }]}>
                   {selectedTeam?.team_logo
                     ? <Image source={{ uri: selectedTeam.team_logo }} style={styles.teamLogo} />
                     : <Text>⚽</Text>}
@@ -549,7 +547,7 @@ export default function TeamsScreen() {
                   }]}
                   onPress={() => { hapticSelect(); setSelectedTeam(item); setTeamModalVisible(false); }}
                 >
-                  <View style={[styles.modalLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                  <View style={[styles.modalLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.04)' }]}>
                     {item.team_logo
                       ? <Image source={{ uri: item.team_logo }} style={styles.modalLogo} />
                       : <Text style={{ fontSize: 14 }}>⚽</Text>}

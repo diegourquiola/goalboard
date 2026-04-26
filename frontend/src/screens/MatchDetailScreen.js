@@ -398,15 +398,14 @@ export default function MatchDetailScreen({ route }) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
           }
         >
-          {/* League Table */}
+          {/* League Table — hidden for knockout rounds (no standings data) */}
+          {(loading.standings || errors.standings || teamRows.length > 0) && (
           <View style={s.section}>
             <SectionTitle label="LEAGUE TABLE" colors={colors} />
             {loading.standings ? <InlineSpinner colors={colors} /> :
              errors.standings  ? <RetryButton onPress={fetchStandings} colors={colors} /> : (
                <View style={[s.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                 {teamRows.length === 0 ? (
-                   <Text style={[s.empty, { color: colors.mutedForeground }]}>No standings data.</Text>
-                 ) : teamRows.map((row, i) => (
+                 {teamRows.map((row, i) => (
                    <TouchableOpacity
                      key={row.team_name ?? i}
                      activeOpacity={0.7}
@@ -434,6 +433,7 @@ export default function MatchDetailScreen({ route }) {
                </View>
              )}
           </View>
+          )}
 
           {/* Events */}
           <View style={s.section}>

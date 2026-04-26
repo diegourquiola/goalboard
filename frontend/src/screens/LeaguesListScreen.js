@@ -51,6 +51,7 @@ export default function LeaguesListScreen({ navigation }) {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
     >
       {/* Search bar */}
       <TouchableOpacity
@@ -71,11 +72,9 @@ export default function LeaguesListScreen({ navigation }) {
         />
         {searching
           ? <ActivityIndicator size="small" color={colors.accent} style={styles.spinner} />
-          : query.length > 0
-            ? <TouchableOpacity onPress={clearSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            : null
+          : <TouchableOpacity onPress={clearSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
+            </TouchableOpacity>
         }
       </TouchableOpacity>
 
@@ -95,7 +94,7 @@ export default function LeaguesListScreen({ navigation }) {
               style={[styles.resultRow, { borderBottomColor: colors.border }]}
               onPress={() => { hapticSelect(); clearSearch(); onSelect({ code: String(item.id), id: item.id, label: item.name, name: item.name, logo: item.logo }); }}
             >
-              <View style={[styles.resultLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+              <View style={[styles.resultLogoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.04)' }]}>
                 {item.logo
                   ? <Image source={{ uri: item.logo }} style={styles.resultLogo} resizeMode="contain" />
                   : <Text style={{ fontSize: 16 }}>⚽</Text>}
@@ -124,7 +123,7 @@ export default function LeaguesListScreen({ navigation }) {
             activeOpacity={0.7}
             onPress={() => { hapticSelect(); onSelect(league); }}
           >
-            <View style={styles.logoCircle}>
+            <View style={[styles.logoCircle, { backgroundColor: isDark ? 'rgba(255,255,255,0.88)' : '#F6F8FA' }]}>
               <Image source={{ uri: league.logo }} style={styles.logo} resizeMode="contain" />
             </View>
             <Text style={[styles.cardLabel, { color: colors.foreground }]} numberOfLines={2}>
@@ -144,7 +143,7 @@ const styles = StyleSheet.create({
 
   grid:           { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 24 },
   card:           { width: '47%', borderRadius: 24, borderWidth: 1, paddingVertical: 24, paddingHorizontal: 16, alignItems: 'center', gap: 16 },
-  logoCircle:     { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F6F8FA' },
+  logoCircle:     { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   logo:           { width: 52, height: 52 },
   cardLabel:      { fontSize: 13, fontWeight: '700', textAlign: 'center', lineHeight: 18 },
 
