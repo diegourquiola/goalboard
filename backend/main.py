@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import standings, matches, teams, leagues, fixtures, top_scorers, squad, players, push_tokens, bracket
+from routers import standings, matches, teams, leagues, fixtures, top_scorers, squad, players, push_tokens, bracket, home
 from services.scheduler import get_scheduler
 from services.notification_service import poll_live_events, poll_upcoming_events
 
@@ -37,6 +37,7 @@ app.include_router(squad.router,        prefix="/api")
 app.include_router(players.router,      prefix="/api")
 app.include_router(push_tokens.router)
 app.include_router(bracket.router,      prefix="/api")
+app.include_router(home.router,         prefix="/api")
 
 
 @app.get("/api/health")
