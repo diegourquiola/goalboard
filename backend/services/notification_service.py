@@ -6,14 +6,40 @@ from services.football_api import _get
 
 logger = logging.getLogger(__name__)
 
-# In-memory state tracking per fixture
-_processed_events: dict[int, set] = {}
-_status_sent: dict[int, set] = {}
-_lineups_sent: set[int] = set()   # covers both pre-match and during-match
-_reminder_sent: set[int] = set()
-_cancelled_sent: set[int] = set()
-
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
+
+
+def _get_sent_keys(fixture_ids: list[int]) -> set[str]:
+    if not fixture_ids:
+        return set()
+    try:
+        supabase = get_supabase()
+        rows = (
+            supabase.table("notification_log")
+            .select("fixture_id,event_key")
+            .in_("fixture_id", fixture_ids)
+            .execute()
+            .data
+        )
+        return {f"{r['fixture_id']}:{r['event_key']}" for r in rows}
+    except Exception as e:
+        logger.error("[Dedup] failed to fetch sent keys: %s", e)
+        return set()
+
+
+def _mark_sent(fixture_id: int, event_key: str) -> None:
+    try:
+        supabase = get_supabase()
+        supabase.table("notification_log").upsert(
+            {"fixture_id": fixture_id, "event_key": event_key},
+            on_conflict="fixture_id,event_key",
+        ).execute()
+    except Exception as e:
+        logger.error("[Dedup] failed to mark sent %s:%s: %s", fixture_id, event_key, e)
+
+
+def _already_sent(sent_keys: set[str], fixture_id: int, event_key: str) -> bool:
+    return f"{fixture_id}:{event_key}" in sent_keys
 
 
 def _get_live_fixtures() -> list[dict]:
@@ -93,6 +119,11 @@ def poll_live_events() -> None:
         return
 
     logger.info("[Poll] %d live fixture(s)", len(fixtures))
+    if not fixtures:
+        return
+
+    fixture_ids = [f["fixture"]["id"] for f in fixtures]
+    sent_keys   = _get_sent_keys(fixture_ids)
 
     for fixture in fixtures:
         fixture_id  = fixture["fixture"]["id"]
@@ -113,64 +144,44 @@ def poll_live_events() -> None:
         if not tokens:
             continue
 
-        status_sent = _status_sent.setdefault(fixture_id, set())
+        def sent(key):
+            return _already_sent(sent_keys, fixture_id, key)
+
+        def mark(key):
+            sent_keys.add(f"{fixture_id}:{key}")
+            _mark_sent(fixture_id, key)
 
         # Kick-off
-        if status == "1H" and elapsed <= 2 and "KO" not in status_sent:
-            _send_notifications(
-                tokens,
-                f"Kick Off! {home['name']} vs {away['name']}",
-                "The match has started!",
-            )
-            status_sent.add("KO")
+        if status == "1H" and elapsed <= 2 and not sent("KO"):
+            _send_notifications(tokens, f"Kick Off! {home['name']} vs {away['name']}", "The match has started!")
+            mark("KO")
 
         # Halftime
-        if status == "HT" and "HT" not in status_sent:
-            _send_notifications(
-                tokens,
-                f"Half Time | {home['name']} vs {away['name']}",
-                f"Score: {home['name']} {home_score} - {away_score} {away['name']}",
-            )
-            status_sent.add("HT")
+        if status == "HT" and not sent("HT"):
+            _send_notifications(tokens, f"Half Time | {home['name']} vs {away['name']}", f"Score: {home['name']} {home_score} - {away_score} {away['name']}")
+            mark("HT")
 
         # Full time
-        if status in ("FT", "AET", "PEN") and "FT" not in status_sent:
-            _send_notifications(
-                tokens,
-                f"Full Time | {home['name']} vs {away['name']}",
-                f"Final: {home['name']} {home_score} - {away_score} {away['name']}",
-            )
-            status_sent.add("FT")
+        if status in ("FT", "AET", "PEN") and not sent("FT"):
+            _send_notifications(tokens, f"Full Time | {home['name']} vs {away['name']}", f"Final: {home['name']} {home_score} - {away_score} {away['name']}")
+            mark("FT")
 
-        # Extra time start (ET = extra time playing, BT = break between ET halves)
-        if status in ("ET", "BT") and "ET" not in status_sent:
-            _send_notifications(
-                tokens,
-                f"⏱️ Extra Time | {home['name']} vs {away['name']}",
-                f"Score after 90 min: {home['name']} {home_score} - {away_score} {away['name']}",
-            )
-            status_sent.add("ET")
+        # Extra time
+        if status in ("ET", "BT") and not sent("ET"):
+            _send_notifications(tokens, f"⏱️ Extra Time | {home['name']} vs {away['name']}", f"Score after 90 min: {home['name']} {home_score} - {away_score} {away['name']}")
+            mark("ET")
 
-        # Penalty shootout start
-        if status == "P" and "P" not in status_sent:
-            _send_notifications(
-                tokens,
-                f"🥅 Penalty Shootout! {home['name']} vs {away['name']}",
-                f"It goes to penalties! {home['name']} {home_score} - {away_score} {away['name']}",
-            )
-            status_sent.add("P")
+        # Penalty shootout
+        if status == "P" and not sent("P"):
+            _send_notifications(tokens, f"🥅 Penalty Shootout! {home['name']} vs {away['name']}", f"It goes to penalties! {home['name']} {home_score} - {away_score} {away['name']}")
+            mark("P")
 
-        # Lineups available (sent once per fixture when match goes live)
-        if status in ("1H", "2H", "ET", "BT", "HT") and fixture_id not in _lineups_sent:
+        # Lineups
+        if status in ("1H", "2H", "ET", "BT", "HT") and not sent("lineups"):
             try:
-                lineups = _get_fixture_lineups(fixture_id)
-                if lineups:
-                    _send_notifications(
-                        tokens,
-                        f"📋 Lineups Available | {home['name']} vs {away['name']}",
-                        "Starting lineups have been confirmed.",
-                    )
-                    _lineups_sent.add(fixture_id)
+                if _get_fixture_lineups(fixture_id):
+                    _send_notifications(tokens, f"📋 Lineups Available | {home['name']} vs {away['name']}", "Starting lineups have been confirmed.")
+                    mark("lineups")
             except Exception:
                 pass
 
@@ -180,59 +191,41 @@ def poll_live_events() -> None:
         except Exception:
             continue
 
-        processed = _processed_events.setdefault(fixture_id, set())
-
         for event in events:
             elapsed_min = event.get("time", {}).get("elapsed", "?")
             event_type  = event.get("type", "")
             detail      = event.get("detail", "")
             team_name   = event.get("team", {}).get("name", "")
             player_name = event.get("player", {}).get("name", "Unknown")
-            event_key   = f"{elapsed_min}-{event_type}-{event.get('player', {}).get('id')}"
+            event_key   = f"evt-{elapsed_min}-{event_type}-{event.get('player', {}).get('id')}"
 
-            if event_key in processed:
+            if sent(event_key):
                 continue
-            processed.add(event_key)
 
             if event_type == "Goal":
-                _send_notifications(
-                    tokens,
-                    f"⚽ Goal! {team_name} ({elapsed_min}')",
-                    f"{player_name} scores! {home['name']} {home_score} - {away_score} {away['name']}",
-                )
+                _send_notifications(tokens, f"⚽ Goal! {team_name} ({elapsed_min}')", f"{player_name} scores! {home['name']} {home_score} - {away_score} {away['name']}")
+                mark(event_key)
             elif event_type == "Card" and detail == "Red Card":
-                _send_notifications(
-                    tokens,
-                    f"🟥 Red Card! {team_name} ({elapsed_min}')",
-                    f"{player_name} has been sent off.",
-                )
+                _send_notifications(tokens, f"🟥 Red Card! {team_name} ({elapsed_min}')", f"{player_name} has been sent off.")
+                mark(event_key)
             elif event_type == "Var" and "Penalty" in detail:
-                _send_notifications(
-                    tokens,
-                    f"🥅 Penalty! {team_name} ({elapsed_min}')",
-                    f"Penalty awarded to {team_name}.",
-                )
-
-        # Clean up memory for finished matches
-        if status in ("FT", "AET", "PEN"):
-            _processed_events.pop(fixture_id, None)
-            _status_sent.pop(fixture_id, None)
-            _lineups_sent.discard(fixture_id)
+                _send_notifications(tokens, f"🥅 Penalty! {team_name} ({elapsed_min}')", f"Penalty awarded to {team_name}.")
+                mark(event_key)
 
 
 def poll_upcoming_events() -> None:
-    """Handle pre-match 30-min reminders and postponed/cancelled notifications.
-
-    PST/CANC statuses never appear in the live feed, so today's full fixture
-    list is queried separately. The 25-35 min reminder window accounts for the
-    60-second polling interval so every kickoff is caught exactly once.
-    """
+    """Handle pre-match 30-min reminders and postponed/cancelled notifications."""
     try:
         fixtures = _get_todays_fixtures()
     except Exception:
         return
 
-    now = datetime.datetime.now(datetime.timezone.utc)
+    if not fixtures:
+        return
+
+    fixture_ids = [f["fixture"]["id"] for f in fixtures]
+    sent_keys   = _get_sent_keys(fixture_ids)
+    now         = datetime.datetime.now(datetime.timezone.utc)
 
     for fixture in fixtures:
         fixture_id = fixture["fixture"]["id"]
@@ -248,47 +241,34 @@ def poll_upcoming_events() -> None:
         if not tokens:
             continue
 
+        def sent(key):
+            return _already_sent(sent_keys, fixture_id, key)
+
+        def mark(key):
+            sent_keys.add(f"{fixture_id}:{key}")
+            _mark_sent(fixture_id, key)
+
         if status == "NS":
             try:
                 kickoff = datetime.datetime.fromisoformat(date_str.replace("Z", "+00:00"))
                 minutes_until = (kickoff - now).total_seconds() / 60
 
-                # Pre-match lineups — check once per minute once within 2h of kickoff
-                if fixture_id not in _lineups_sent and minutes_until <= 120:
+                if not sent("lineups") and minutes_until <= 120:
                     lineups = _get_fixture_lineups(fixture_id)
                     if lineups:
-                        _send_notifications(
-                            tokens,
-                            f"📋 Lineups | {home['name']} vs {away['name']}",
-                            "Starting lineups have been confirmed.",
-                        )
-                        _lineups_sent.add(fixture_id)
+                        _send_notifications(tokens, f"📋 Lineups | {home['name']} vs {away['name']}", "Starting lineups have been confirmed.")
+                        mark("lineups")
 
-                # Pre-match reminder — send once when kickoff is 25-35 min away
-                if fixture_id not in _reminder_sent and 25 <= minutes_until <= 35:
-                    _send_notifications(
-                        tokens,
-                        f"⏰ Match Starts in 30 min",
-                        f"{home['name']} vs {away['name']} — kick off soon!",
-                    )
-                    _reminder_sent.add(fixture_id)
+                if not sent("reminder") and 25 <= minutes_until <= 35:
+                    _send_notifications(tokens, "⏰ Match Starts in 30 min", f"{home['name']} vs {away['name']} — kick off soon!")
+                    mark("reminder")
             except Exception:
                 pass
 
-        # Postponed
-        if status == "PST" and fixture_id not in _cancelled_sent:
-            _send_notifications(
-                tokens,
-                f"📅 Match Postponed",
-                f"{home['name']} vs {away['name']} has been postponed.",
-            )
-            _cancelled_sent.add(fixture_id)
+        if status == "PST" and not sent("cancelled"):
+            _send_notifications(tokens, "📅 Match Postponed", f"{home['name']} vs {away['name']} has been postponed.")
+            mark("cancelled")
 
-        # Cancelled
-        if status == "CANC" and fixture_id not in _cancelled_sent:
-            _send_notifications(
-                tokens,
-                f"❌ Match Cancelled",
-                f"{home['name']} vs {away['name']} has been cancelled.",
-            )
-            _cancelled_sent.add(fixture_id)
+        if status == "CANC" and not sent("cancelled"):
+            _send_notifications(tokens, "❌ Match Cancelled", f"{home['name']} vs {away['name']} has been cancelled.")
+            mark("cancelled")
