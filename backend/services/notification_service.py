@@ -13,7 +13,7 @@ _lineups_sent: set[int] = set()   # covers both pre-match and during-match
 _reminder_sent: set[int] = set()
 _cancelled_sent: set[int] = set()
 
-EXPO_PUSH_URL = "https://exp.host/--/push/v2/send"
+EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 
 
 def _get_live_fixtures() -> list[dict]:

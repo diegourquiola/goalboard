@@ -10,7 +10,7 @@ import ErrorState from '../components/ErrorState';
 import AllMatchesView from './AllMatchesView';
 import TopScorersView from './TopScorersView';
 import TopAssistsView from './TopAssistsView';
-import CLBracketView from './CLBracketView';
+
 import { useTheme } from '../theme/ThemeContext';
 import { LEAGUES, LEAGUE_ZONES } from '../constants/leagues';
 import { hapticSelect, hapticLight, hapticSuccess } from '../utils/haptics';
@@ -25,7 +25,7 @@ const BASE_TABS = [
   { key: 'topscorers', title: 'TOP SCORERS' },
   { key: 'topassists', title: 'TOP ASSISTS' },
 ];
-const CL_TABS = [...BASE_TABS, { key: 'bracket', title: 'BRACKET' }];
+const CL_TABS = BASE_TABS;
 
 function StandingsView({ leagueCode }) {
   const { colors, isDark } = useTheme();
@@ -184,7 +184,7 @@ export default function LeagueDetailScreen({ route, navigation }) {
     if (r.key === 'matches')    return <AllMatchesView leagueCode={league.code} />;
     if (r.key === 'topscorers') return <TopScorersView leagueCode={league.code} />;
     if (r.key === 'topassists') return <TopAssistsView leagueCode={league.code} />;
-    if (r.key === 'bracket')    return <CLBracketView />;
+
     return null;
   }, [league.code]);
 
