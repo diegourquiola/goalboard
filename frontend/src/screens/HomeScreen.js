@@ -3,7 +3,6 @@ import {
   View, Text, Image, TouchableOpacity, ScrollView,
   StyleSheet, RefreshControl, Modal, Pressable, useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
@@ -232,6 +231,9 @@ function CountrySection({ country, isFavorited }) {
         activeOpacity={0.7}
       >
         <View style={styles.countryLeft}>
+          {country.country_flag ? (
+            <Text style={styles.countryFlag}>{country.country_flag}</Text>
+          ) : null}
           <Text style={[styles.countryName, { color: colors.foreground }]}>{country.country}</Text>
         </View>
         <View style={styles.countryRight}>
@@ -378,8 +380,8 @@ export default function HomeScreen() {
   const [error,      setError]      = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchData = useCallback(async (date) => {
-    setLoading(true);
+  const fetchData = useCallback(async (date, silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -388,7 +390,7 @@ export default function HomeScreen() {
     } catch (e) {
       setError(e.response?.data?.detail ?? 'Failed to load matches.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -406,7 +408,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!hasLiveMatches) return;
-    const id = setInterval(() => fetchData(selectedDate), 60_000);
+    const id = setInterval(() => fetchData(selectedDate, true), 60_000);
     return () => clearInterval(id);
   }, [hasLiveMatches, selectedDate, fetchData]);
 
@@ -437,7 +439,7 @@ export default function HomeScreen() {
   const isEmpty = data && sortedFeatured.length === 0 && (data.countries ?? []).length === 0;
 
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Date nav bar */}
       <View style={[styles.dateBar, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => shiftDate(-1)} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
@@ -491,7 +493,7 @@ export default function HomeScreen() {
           ))}
         </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -499,7 +501,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container:     { flex: 1 },
-  scrollContent: { paddingBottom: 100 },
+  scrollContent: { paddingBottom: 120 },
 
   // Date bar
   dateBar:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1 },
@@ -524,6 +526,7 @@ const styles = StyleSheet.create({
   countryLeft:            { flexDirection: 'row', alignItems: 'center', gap: 12 },
   countryRight:           { flexDirection: 'row', alignItems: 'center', gap: 8 },
   
+  countryFlag:            { fontSize: 18 },
   countryName:            { fontSize: 15, fontWeight: '600' },
   matchCount:             { fontSize: 13, fontWeight: '600' },
   innerLeagueHeader:      { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 1, borderBottomWidth: 1 },

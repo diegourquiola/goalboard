@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Image, ScrollView, StyleSheet, ActivityIndicator,
-  RefreshControl, TouchableOpacity,
+  RefreshControl, TouchableOpacity, useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { TabView } from 'react-native-tab-view';
 import api from '../services/api';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../theme/ThemeContext';
-import { hapticSelect, hapticSuccess } from '../utils/haptics';
+import { hapticSelect, hapticLight, hapticSuccess } from '../utils/haptics';
 import { useAuth } from '../context/AuthContext';
 import { useFavorites } from '../hooks/useFavorites';
 import AuthGate from '../components/AuthGate';
@@ -37,207 +38,45 @@ function StatChip({ label, value, sub, colors }) {
 const POSITION_ORDER = { Goalkeeper: 0, Defender: 1, Midfielder: 2, Attacker: 3 };
 const POSITION_SHORT = { Goalkeeper: 'GK', Defender: 'DEF', Midfielder: 'MID', Attacker: 'FWD' };
 
-export default function TeamDetailScreen({ route, navigation }) {
-  const { team: routeTeam, leagueCode: routeLeagueCode, leagueLabel: routeLeagueLabel } = route.params;
-  const { colors, isDark } = useTheme();
-  const { user } = useAuth();
-  const { isFavorited, toggleFavorite } = useFavorites();
+const TABS = [
+  { key: 'info',      title: 'INFO'      },
+  { key: 'squad',     title: 'SQUAD'     },
+  { key: 'transfers', title: 'TRANSFERS' },
+];
 
-  const teamId = routeTeam.team_id ?? routeTeam.id;
-  const hasStats = routeTeam.games_played != null;
-
-  const [leagueCode, setLeagueCode]   = useState(routeLeagueCode ?? null);
-  const [leagueLabel, setLeagueLabel] = useState(routeLeagueLabel ?? null);
-
-  const [team, setTeam]   = useState(routeTeam);
-  const [nextFixture, setNextFixture] = useState(null);
-  const [lastFixtures, setLastFixtures] = useState([]);
-  const [squad, setSquad] = useState([]);
-  const [loadingNext, setLoadingNext] = useState(true);
-  const [loadingLast, setLoadingLast] = useState(true);
-  const [loadingSquad, setLoadingSquad] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [teamInfo, setTeamInfo]   = useState(null);
-  const [transfers, setTransfers] = useState([]);
-  const [loadingTeamInfo, setLoadingTeamInfo] = useState(true);
-  const [loadingTransfers, setLoadingTransfers] = useState(true);
-  const [showAuthGate, setShowAuthGate] = useState(false);
-
-  const favorited = isFavorited('team', teamId);
-
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={() => {
-            if (!user) { setShowAuthGate(true); return; }
-            toggleFavorite({
-              type: 'team',
-              externalId: teamId,
-              name: team?.team_name ?? routeTeam.team_name ?? '',
-              logo: team?.team_logo ?? routeTeam.team_logo ?? null,
-            });
-          }}
-          style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 4 }}
-        >
-          <Ionicons
-            name={favorited ? 'heart' : 'heart-outline'}
-            size={24}
-            color={favorited ? '#EF4444' : colors.foreground}
-          />
-        </TouchableOpacity>
-      ),
-    });
-  }, [favorited, user, team, toggleFavorite]);
-
-  const fetchData = useCallback(() => {
-    setLoadingNext(true);
-    setLoadingLast(true);
-    setLoadingSquad(true);
-
-    if (!hasStats && leagueCode) {
-      api.get(`/api/standings/${leagueCode}`)
-        .then(r => {
-          const rows = r.data?.stage?.[0]?.standings ?? [];
-          const found = rows.find(row => row.team_id === teamId);
-          if (found) setTeam(prev => ({ ...prev, ...found }));
-        })
-        .catch(() => {});
-    } else if (!hasStats && !leagueCode) {
-      // Discover which league this team belongs to (skip CL — domestic leagues only)
-      LEAGUES.filter(({ code }) => code !== 'CL').forEach(({ code, label }) => {
-        api.get(`/api/standings/${code}`)
-          .then(r => {
-            const rows = r.data?.stage?.[0]?.standings ?? [];
-            const found = rows.find(row => row.team_id === teamId);
-            if (found) {
-              setTeam(prev => ({ ...prev, ...found }));
-              setLeagueCode(code);
-              setLeagueLabel(label);
-            }
-          })
-          .catch(() => {});
-      });
-    }
-
-    api.get(`/api/teams/${teamId}/next`)
-      .then(r => setNextFixture(Object.keys(r.data).length > 0 ? r.data : null))
-      .catch(() => setNextFixture(null))
-      .finally(() => setLoadingNext(false));
-
-    api.get(`/api/teams/${teamId}/last-fixtures`, { params: { last: 5 } })
-      .then(r => setLastFixtures(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setLastFixtures([]))
-      .finally(() => setLoadingLast(false));
-
-    api.get(`/api/squad/${teamId}`)
-      .then(r => setSquad(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setSquad([]))
-      .finally(() => setLoadingSquad(false));
-
-    setLoadingTeamInfo(true);
-    setLoadingTransfers(true);
-
-    api.get(`/api/teams/PL/${teamId}`)
-      .then(r => {
-        const venue = r.data?.venue;
-        setTeamInfo(venue ? { venue_name: venue.name, venue_city: venue.city, venue_capacity: venue.capacity, venue_surface: venue.surface } : null);
-      })
-      .catch(() => setTeamInfo(null))
-      .finally(() => setLoadingTeamInfo(false));
-
-    api.get(`/api/teams/${teamId}/transfers`)
-      .then(r => setTransfers(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setTransfers([]))
-      .finally(() => setLoadingTransfers(false));
-  }, [teamId, routeLeagueCode, hasStats]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchData();
-    setTimeout(() => { setRefreshing(false); hapticSuccess(); }, 1500);
-  }, [fetchData]);
-
-  const gp = team.games_played || 0;
-  const w = team.wins || 0;
-  const d = team.draws || 0;
-  const l = team.losses || 0;
-  const gf = team.goals_for || 0;
-  const ga = team.goals_against || 0;
+function InfoTab({ team, teamId, leagueCode, nextFixture, loadingNext, lastFixtures, loadingLast, teamInfo, loadingTeamInfo, getResult, navigation, colors, isDark, refreshing, onRefresh }) {
+  const gp  = team.games_played || 0;
+  const w   = team.wins || 0;
+  const d   = team.draws || 0;
+  const l   = team.losses || 0;
+  const gf  = team.goals_for || 0;
+  const ga  = team.goals_against || 0;
   const pts = team.points || 0;
   const avgGoals = gp > 0 ? (gf / gp).toFixed(1) : '0.0';
-  const winPct = gp > 0 ? Math.round((w / gp) * 100) : 0;
-
-  const groupedSquad = squad.reduce((acc, p) => {
-    const pos = p.position || 'Unknown';
-    if (!acc[pos]) acc[pos] = [];
-    acc[pos].push(p);
-    return acc;
-  }, {});
-
-  const sortedPositions = Object.keys(groupedSquad).sort(
-    (a, b) => (POSITION_ORDER[a] ?? 99) - (POSITION_ORDER[b] ?? 99)
-  );
-
-  const getResult = (fixture) => {
-    const homeId = fixture.teams?.home?.id;
-    const hScore = fixture.score?.home;
-    const aScore = fixture.score?.away;
-    if (hScore == null || aScore == null) return null;
-    if (hScore === aScore) return 'D';
-    const isHome = homeId === teamId;
-    return (isHome ? hScore > aScore : aScore > hScore) ? 'W' : 'L';
-  };
+  const winPct   = gp > 0 ? Math.round((w / gp) * 100) : 0;
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={{ backgroundColor: colors.background }}
+      contentContainerStyle={styles.tabContent}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
     >
-      {/* Header */}
-      <BlurView
-        tint={isDark ? 'systemThinMaterialDark' : 'systemThinMaterialLight'}
-        intensity={60}
-        style={[styles.headerCard, { borderColor: colors.border, overflow: 'hidden' }]}
-      >
-        <View style={[styles.logoCircle, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
-          {team.team_logo
-            ? <Image source={{ uri: team.team_logo }} style={styles.headerLogo} />
-            : <Text style={{ fontSize: 32 }}>⚽</Text>}
-        </View>
-        <Text style={[styles.headerName, { color: colors.foreground }]}>{team.team_name}</Text>
-        <View style={styles.headerMeta}>
-          {team.position != null && (
-            <View style={[styles.positionBadge, { backgroundColor: colors.accent + '1A' }]}>
-              <Text style={[styles.positionText, { color: colors.accent }]}>#{team.position} in league</Text>
-            </View>
-          )}
-          {leagueLabel && (
-            <Text style={[styles.leagueName, { color: colors.mutedForeground }]}>{leagueLabel}</Text>
-          )}
-        </View>
-      </BlurView>
-
-      {/* Season Stats */}
       {gp > 0 && (
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>SEASON STATS</Text>
           <View style={styles.statGrid}>
-            <StatChip label="Points" value={pts} sub={`${gp} games`} colors={colors} />
-            <StatChip label="Win %" value={`${winPct}%`} sub={`${w}W ${d}D ${l}L`} colors={colors} />
-            <StatChip label="Goals" value={gf} sub={`${avgGoals} avg`} colors={colors} />
+            <StatChip label="Points"   value={pts}          sub={`${gp} games`}       colors={colors} />
+            <StatChip label="Win %"    value={`${winPct}%`} sub={`${w}W ${d}D ${l}L`} colors={colors} />
+            <StatChip label="Goals"    value={gf}           sub={`${avgGoals} avg`}    colors={colors} />
           </View>
           <View style={styles.statGrid}>
             <StatChip label="Conceded" value={ga} sub={gp > 0 ? `${(ga / gp).toFixed(1)} avg` : '–'} colors={colors} />
-            <StatChip label="GD" value={team.goal_difference > 0 ? `+${team.goal_difference}` : `${team.goal_difference}`} colors={colors} />
-            <StatChip label="Played" value={gp} colors={colors} />
+            <StatChip label="GD"       value={team.goal_difference > 0 ? `+${team.goal_difference}` : `${team.goal_difference}`} colors={colors} />
+            <StatChip label="Played"   value={gp} colors={colors} />
           </View>
         </View>
       )}
 
-      {/* Next Fixture */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>NEXT MATCH</Text>
         {loadingNext ? (
@@ -284,7 +123,6 @@ export default function TeamDetailScreen({ route, navigation }) {
         )}
       </View>
 
-      {/* Recent Results */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>RECENT RESULTS</Text>
         {loadingLast ? (
@@ -338,61 +176,6 @@ export default function TeamDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Squad */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>SQUAD</Text>
-        {loadingSquad ? (
-          <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 12 }} />
-        ) : squad.length === 0 ? (
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No squad data available.</Text>
-        ) : (
-          <View style={[styles.squadCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {sortedPositions.map((pos, pi) => (
-              <View key={pos}>
-                <View style={[styles.posHeader, pi > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
-                  <Text style={[styles.posLabel, { color: colors.accent }]}>
-                    {POSITION_SHORT[pos] ?? pos.toUpperCase()}
-                  </Text>
-                </View>
-                {groupedSquad[pos].map((p, i) => (
-                  <TouchableOpacity
-                    key={p.id ?? i}
-                    activeOpacity={0.7}
-                    onPress={() => { hapticSelect(); p.id && navigation.push('PlayerDetail', {
-                      playerId: p.id, playerName: p.name, playerPhoto: p.photo,
-                    }); }}
-                    style={[
-                      styles.playerRow,
-                      {
-                        borderBottomWidth: (i === groupedSquad[pos].length - 1 && pi === sortedPositions.length - 1) ? 0 : 1,
-                        borderBottomColor: colors.border,
-                        backgroundColor: i % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)'),
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.playerNum, { color: colors.mutedForeground }]}>
-                      {p.number ?? '–'}
-                    </Text>
-                    <View style={[styles.playerPhotoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
-                      {p.photo
-                        ? <Image source={{ uri: p.photo }} style={styles.playerPhoto} />
-                        : <Ionicons name="person" size={14} color={colors.mutedForeground} />}
-                    </View>
-                    <View style={styles.playerInfo}>
-                      <Text style={[styles.playerName, { color: colors.foreground }]} numberOfLines={1}>{p.name}</Text>
-                      {p.age != null && (
-                        <Text style={[styles.playerAge, { color: colors.mutedForeground }]}>Age {p.age}</Text>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-
-      {/* Venue */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>VENUE</Text>
         {loadingTeamInfo ? (
@@ -425,17 +208,99 @@ export default function TeamDetailScreen({ route, navigation }) {
           </View>
         )}
       </View>
+    </ScrollView>
+  );
+}
 
-      {/* Recent Transfers */}
-      {transfers.length > 0 && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>RECENT TRANSFERS</Text>
+function SquadTab({ squad, loadingSquad, navigation, colors, isDark, refreshing, onRefresh }) {
+  const groupedSquad = squad.reduce((acc, p) => {
+    const pos = p.position || 'Unknown';
+    if (!acc[pos]) acc[pos] = [];
+    acc[pos].push(p);
+    return acc;
+  }, {});
+  const sortedPositions = Object.keys(groupedSquad).sort(
+    (a, b) => (POSITION_ORDER[a] ?? 99) - (POSITION_ORDER[b] ?? 99)
+  );
+
+  return (
+    <ScrollView
+      style={{ backgroundColor: colors.background }}
+      contentContainerStyle={styles.tabContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+    >
+      <View style={styles.section}>
+        {loadingSquad ? (
+          <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 12 }} />
+        ) : squad.length === 0 ? (
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No squad data available.</Text>
+        ) : (
           <View style={[styles.squadCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {transfers.slice(0, 10).map((t, i) => (
+            {sortedPositions.map((pos, pi) => (
+              <View key={pos}>
+                <View style={[styles.posHeader, pi > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
+                  <Text style={[styles.posLabel, { color: colors.accent }]}>
+                    {POSITION_SHORT[pos] ?? pos.toUpperCase()}
+                  </Text>
+                </View>
+                {groupedSquad[pos].map((p, i) => (
+                  <TouchableOpacity
+                    key={p.id ?? i}
+                    activeOpacity={0.7}
+                    onPress={() => { hapticSelect(); p.id && navigation.push('PlayerDetail', {
+                      playerId: p.id, playerName: p.name, playerPhoto: p.photo,
+                    }); }}
+                    style={[
+                      styles.playerRow,
+                      {
+                        borderBottomWidth: (i === groupedSquad[pos].length - 1 && pi === sortedPositions.length - 1) ? 0 : 1,
+                        borderBottomColor: colors.border,
+                        backgroundColor: i % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)'),
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.playerNum, { color: colors.mutedForeground }]}>{p.number ?? '–'}</Text>
+                    <View style={[styles.playerPhotoWrap, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                      {p.photo
+                        ? <Image source={{ uri: p.photo }} style={styles.playerPhoto} />
+                        : <Ionicons name="person" size={14} color={colors.mutedForeground} />}
+                    </View>
+                    <View style={styles.playerInfo}>
+                      <Text style={[styles.playerName, { color: colors.foreground }]} numberOfLines={1}>{p.name}</Text>
+                      {p.age != null && (
+                        <Text style={[styles.playerAge, { color: colors.mutedForeground }]}>Age {p.age}</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    </ScrollView>
+  );
+}
+
+function TransfersTab({ transfers, loadingTransfers, colors, isDark, refreshing, onRefresh }) {
+  return (
+    <ScrollView
+      style={{ backgroundColor: colors.background }}
+      contentContainerStyle={styles.tabContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+    >
+      <View style={styles.section}>
+        {loadingTransfers ? (
+          <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 12 }} />
+        ) : transfers.length === 0 ? (
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No transfer data available.</Text>
+        ) : (
+          <View style={[styles.squadCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {transfers.map((t, i) => (
               <View
                 key={`transfer-${i}`}
                 style={[styles.transferRow, {
-                  borderBottomWidth: i === Math.min(transfers.length, 10) - 1 ? 0 : 1,
+                  borderBottomWidth: i === transfers.length - 1 ? 0 : 1,
                   borderBottomColor: colors.border,
                 }]}
               >
@@ -462,19 +327,242 @@ export default function TeamDetailScreen({ route, navigation }) {
               </View>
             ))}
           </View>
-        </View>
-      )}
-
-      <View style={{ height: 40 }} />
-      <AuthGate visible={showAuthGate} onClose={() => setShowAuthGate(false)} />
+        )}
+      </View>
     </ScrollView>
+  );
+}
+
+export default function TeamDetailScreen({ route, navigation }) {
+  const { team: routeTeam, leagueCode: routeLeagueCode, leagueLabel: routeLeagueLabel } = route.params;
+  const { colors, isDark } = useTheme();
+  const { user } = useAuth();
+  const { isFavorited, toggleFavorite } = useFavorites();
+  const layout = useWindowDimensions();
+
+  const teamId  = routeTeam.team_id ?? routeTeam.id;
+  const hasStats = routeTeam.games_played != null;
+
+  const [leagueCode,  setLeagueCode]  = useState(routeLeagueCode ?? null);
+  const [leagueLabel, setLeagueLabel] = useState(routeLeagueLabel ?? null);
+  const [activeTab,   setActiveTab]   = useState(0);
+
+  const [team,         setTeam]         = useState(routeTeam);
+  const [nextFixture,  setNextFixture]  = useState(null);
+  const [lastFixtures, setLastFixtures] = useState([]);
+  const [squad,        setSquad]        = useState([]);
+  const [teamInfo,     setTeamInfo]     = useState(null);
+  const [transfers,    setTransfers]    = useState([]);
+
+  const [loadingNext,      setLoadingNext]      = useState(true);
+  const [loadingLast,      setLoadingLast]      = useState(true);
+  const [loadingSquad,     setLoadingSquad]     = useState(true);
+  const [loadingTeamInfo,  setLoadingTeamInfo]  = useState(true);
+  const [loadingTransfers, setLoadingTransfers] = useState(true);
+  const [refreshing,       setRefreshing]       = useState(false);
+  const [showAuthGate,     setShowAuthGate]     = useState(false);
+
+  const favorited = isFavorited('team', teamId);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => {
+            if (!user) { setShowAuthGate(true); return; }
+            toggleFavorite({
+              type: 'team',
+              externalId: teamId,
+              name: team?.team_name ?? routeTeam.team_name ?? '',
+              logo: team?.team_logo ?? routeTeam.team_logo ?? null,
+            });
+          }}
+          style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 4 }}
+        >
+          <Ionicons
+            name={favorited ? 'heart' : 'heart-outline'}
+            size={24}
+            color={favorited ? '#EF4444' : colors.foreground}
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [favorited, user, team, toggleFavorite]);
+
+  const fetchData = useCallback(() => {
+    setLoadingNext(true);
+    setLoadingLast(true);
+    setLoadingSquad(true);
+    setLoadingTeamInfo(true);
+    setLoadingTransfers(true);
+
+    if (!hasStats && leagueCode) {
+      api.get(`/api/standings/${leagueCode}`)
+        .then(r => {
+          const rows = r.data?.stage?.[0]?.standings ?? [];
+          const found = rows.find(row => row.team_id === teamId);
+          if (found) setTeam(prev => ({ ...prev, ...found }));
+        })
+        .catch(() => {});
+    } else if (!hasStats && !leagueCode) {
+      LEAGUES.filter(({ code }) => code !== 'CL').forEach(({ code, label }) => {
+        api.get(`/api/standings/${code}`)
+          .then(r => {
+            const rows = r.data?.stage?.[0]?.standings ?? [];
+            const found = rows.find(row => row.team_id === teamId);
+            if (found) {
+              setTeam(prev => ({ ...prev, ...found }));
+              setLeagueCode(code);
+              setLeagueLabel(label);
+            }
+          })
+          .catch(() => {});
+      });
+    }
+
+    api.get(`/api/teams/${teamId}/next`)
+      .then(r => setNextFixture(Object.keys(r.data).length > 0 ? r.data : null))
+      .catch(() => setNextFixture(null))
+      .finally(() => setLoadingNext(false));
+
+    api.get(`/api/teams/${teamId}/last-fixtures`, { params: { last: 5 } })
+      .then(r => setLastFixtures(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setLastFixtures([]))
+      .finally(() => setLoadingLast(false));
+
+    api.get(`/api/squad/${teamId}`)
+      .then(r => setSquad(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setSquad([]))
+      .finally(() => setLoadingSquad(false));
+
+    api.get(`/api/teams/PL/${teamId}`)
+      .then(r => {
+        const venue = r.data?.venue;
+        setTeamInfo(venue ? { venue_name: venue.name, venue_city: venue.city, venue_capacity: venue.capacity, venue_surface: venue.surface } : null);
+      })
+      .catch(() => setTeamInfo(null))
+      .finally(() => setLoadingTeamInfo(false));
+
+    api.get(`/api/teams/${teamId}/transfers`)
+      .then(r => setTransfers(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setTransfers([]))
+      .finally(() => setLoadingTransfers(false));
+  }, [teamId, routeLeagueCode, hasStats]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData();
+    setTimeout(() => { setRefreshing(false); hapticSuccess(); }, 1500);
+  }, [fetchData]);
+
+  const getResult = (fixture) => {
+    const homeId = fixture.teams?.home?.id;
+    const hScore = fixture.score?.home;
+    const aScore = fixture.score?.away;
+    if (hScore == null || aScore == null) return null;
+    if (hScore === aScore) return 'D';
+    const isHome = homeId === teamId;
+    return (isHome ? hScore > aScore : aScore > hScore) ? 'W' : 'L';
+  };
+
+  const sharedProps = { colors, isDark, refreshing, onRefresh, navigation };
+
+  const renderScene = useCallback(({ route: r }) => {
+    if (r.key === 'info') return (
+      <InfoTab
+        {...sharedProps}
+        team={team} teamId={teamId} leagueCode={leagueCode}
+        nextFixture={nextFixture} loadingNext={loadingNext}
+        lastFixtures={lastFixtures} loadingLast={loadingLast}
+        teamInfo={teamInfo} loadingTeamInfo={loadingTeamInfo}
+        getResult={getResult}
+      />
+    );
+    if (r.key === 'squad') return (
+      <SquadTab {...sharedProps} squad={squad} loadingSquad={loadingSquad} />
+    );
+    if (r.key === 'transfers') return (
+      <TransfersTab {...sharedProps} transfers={transfers} loadingTransfers={loadingTransfers} />
+    );
+    return null;
+  }, [team, teamId, leagueCode, nextFixture, loadingNext, lastFixtures, loadingLast,
+      teamInfo, loadingTeamInfo, squad, loadingSquad, transfers, loadingTransfers,
+      refreshing, colors, isDark]);
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <BlurView
+        tint={isDark ? 'systemThinMaterialDark' : 'systemThinMaterialLight'}
+        intensity={60}
+        style={[styles.headerCard, { borderColor: colors.border, overflow: 'hidden' }]}
+      >
+        <View style={[styles.logoCircle, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+          {team.team_logo
+            ? <Image source={{ uri: team.team_logo }} style={styles.headerLogo} />
+            : <Text style={{ fontSize: 32 }}>⚽</Text>}
+        </View>
+        <Text style={[styles.headerName, { color: colors.foreground }]}>{team.team_name}</Text>
+        <View style={styles.headerMeta}>
+          {team.position != null && (
+            <View style={[styles.positionBadge, { backgroundColor: colors.accent + '1A' }]}>
+              <Text style={[styles.positionText, { color: colors.accent }]}>#{team.position} in league</Text>
+            </View>
+          )}
+          {leagueLabel && (
+            <Text style={[styles.leagueName, { color: colors.mutedForeground }]}>{leagueLabel}</Text>
+          )}
+        </View>
+      </BlurView>
+
+      {/* Tab bar */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
+        contentContainerStyle={styles.tabBarContent}
+      >
+        {TABS.map((tab, i) => {
+          const active = activeTab === i;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tab, active && { borderBottomColor: colors.accent, borderBottomWidth: 2 }]}
+              onPress={() => { hapticLight(); setActiveTab(i); }}
+            >
+              <Text style={[styles.tabText, { color: active ? colors.accent : colors.mutedForeground }]}>
+                {tab.title}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      <TabView
+        navigationState={{ index: activeTab, routes: TABS }}
+        renderScene={renderScene}
+        onIndexChange={setActiveTab}
+        renderTabBar={() => null}
+        initialLayout={{ width: layout.width }}
+        lazy
+        renderLazyPlaceholder={() => (
+          <View style={{ flex: 1, alignItems: 'center', paddingTop: 40 }}>
+            <ActivityIndicator color={colors.accent} />
+          </View>
+        )}
+      />
+
+      <AuthGate visible={showAuthGate} onClose={() => setShowAuthGate(false)} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container:     { flex: 1 },
 
-  headerCard:    { margin: 20, borderRadius: 24, borderWidth: 1, padding: 24, alignItems: 'center', gap: 12 },
+  headerCard:    { marginHorizontal: 20, marginTop: 16, marginBottom: 0, borderRadius: 24, borderWidth: 1, padding: 20, alignItems: 'center', gap: 10 },
   logoCircle:    { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   headerLogo:    { width: 52, height: 52 },
   headerName:    { fontSize: 20, fontWeight: '900' },
@@ -483,6 +571,12 @@ const styles = StyleSheet.create({
   positionText:  { fontSize: 12, fontWeight: '800' },
   leagueName:    { fontSize: 12, fontWeight: '600' },
 
+  tabBar:        { borderBottomWidth: 1, flexGrow: 0, marginTop: 16 },
+  tabBarContent: { flexDirection: 'row', paddingHorizontal: 4 },
+  tab:           { paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabText:       { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+
+  tabContent:    { paddingTop: 20, paddingBottom: 40 },
   section:       { paddingHorizontal: 20, marginBottom: 24 },
   sectionTitle:  { fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 12 },
 
@@ -492,25 +586,25 @@ const styles = StyleSheet.create({
   chipVal:       { fontSize: 20, fontWeight: '900' },
   chipSub:       { fontSize: 9, fontWeight: '700' },
 
-  fixtureCard:   { borderRadius: 20, borderWidth: 1, padding: 16, gap: 10 },
-  fixtureRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  fixtureTeam:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  fixtureCard:    { borderRadius: 20, borderWidth: 1, padding: 16, gap: 10 },
+  fixtureRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  fixtureTeam:    { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   fixtureLogoWrap:{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  fixtureLogo:   { width: 20, height: 20 },
+  fixtureLogo:    { width: 20, height: 20 },
   fixtureTeamName:{ fontSize: 13, fontWeight: '700', flex: 1 },
-  fixtureVs:     { fontSize: 12, fontWeight: '800', marginHorizontal: 8 },
-  fixtureFooter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  fixtureDate:   { fontSize: 12, fontWeight: '600' },
-  fixtureVenue:  { fontSize: 11, fontWeight: '500', marginTop: 2 },
+  fixtureVs:      { fontSize: 12, fontWeight: '800', marginHorizontal: 8 },
+  fixtureFooter:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  fixtureDate:    { fontSize: 12, fontWeight: '600' },
+  fixtureVenue:   { fontSize: 11, fontWeight: '500', marginTop: 2 },
 
-  resultsCard:   { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
-  resultRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, gap: 10 },
-  resultBadge:   { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  resultsCard:    { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
+  resultRow:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, gap: 10 },
+  resultBadge:    { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   resultBadgeText:{ color: '#fff', fontSize: 10, fontWeight: '800' },
-  resultTeams:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  resultTeamText:{ flex: 1, fontSize: 12, fontWeight: '600' },
-  resultScore:   { fontSize: 14, fontWeight: '800', minWidth: 40, textAlign: 'center' },
-  resultDate:    { fontSize: 10, fontWeight: '600', width: 44 },
+  resultTeams:    { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  resultTeamText: { flex: 1, fontSize: 12, fontWeight: '600' },
+  resultScore:    { fontSize: 14, fontWeight: '800', minWidth: 40, textAlign: 'center' },
+  resultDate:     { fontSize: 10, fontWeight: '600', width: 44 },
 
   seeAllBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, paddingVertical: 12, borderRadius: 14, borderWidth: 1 },
   seeAllText:    { fontSize: 13, fontWeight: '600' },
@@ -522,19 +616,20 @@ const styles = StyleSheet.create({
   posLabel:      { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
   playerRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10 },
   playerNum:     { width: 24, fontSize: 12, fontWeight: '700', textAlign: 'center' },
-  playerPhotoWrap: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginHorizontal: 8 },
+  playerPhotoWrap:{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginHorizontal: 8 },
   playerPhoto:   { width: 24, height: 24, borderRadius: 12 },
   playerInfo:    { flex: 1, gap: 2 },
   playerName:    { fontSize: 13, fontWeight: '700' },
   playerAge:     { fontSize: 10, fontWeight: '600' },
 
-  venueCard:      { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
-  venueInfo:      { padding: 16, gap: 4 },
-  venueName:      { fontSize: 15, fontWeight: '800' },
-  venueSub:       { fontSize: 12, fontWeight: '500' },
-  venueChips:     { flexDirection: 'row', gap: 8, marginTop: 8 },
-  venueChip:      { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  venueChipText:  { fontSize: 11, fontWeight: '600' },
+  venueCard:     { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
+  venueInfo:     { padding: 16, gap: 4 },
+  venueName:     { fontSize: 15, fontWeight: '800' },
+  venueSub:      { fontSize: 12, fontWeight: '500' },
+  venueChips:    { flexDirection: 'row', gap: 8, marginTop: 8 },
+  venueChip:     { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  venueChipText: { fontSize: 11, fontWeight: '600' },
+
   transferRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
   transferPlayer: { fontSize: 13, fontWeight: '700' },
   transferTeams:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
