@@ -51,11 +51,11 @@ _COUNTRY_ISO: dict[str, str] = {
     "Vietnam": "VN", "Wales": "GB", "Yemen": "YE", "Zambia": "ZM", "Zimbabwe": "ZW",
 }
 
-def _flag_emoji(country_name: str) -> str:
+def _flag_url(country_name: str) -> str:
     code = _COUNTRY_ISO.get(country_name, "")
-    if not code or len(code) != 2:
+    if not code:
         return ""
-    return chr(0x1F1E0 + ord(code[0]) - 65) + chr(0x1F1E0 + ord(code[1]) - 65)
+    return f"https://flagcdn.com/w40/{code.lower()}.png"
 
 router = APIRouter()
 
@@ -92,7 +92,7 @@ def home_matches(date: str = Query(default=None), timezone: str = Query(default=
         league_name = league_info.get("name", "")
         league_logo = league_info.get("logo", "")
         country     = league_info.get("country", "")
-        flag        = _flag_emoji(country)
+        flag        = _flag_url(country)
 
         if league_id in HOME_FEATURED_IDS:
             if league_id not in featured_map:

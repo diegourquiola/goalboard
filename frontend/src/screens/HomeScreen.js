@@ -232,7 +232,7 @@ function CountrySection({ country, isFavorited }) {
       >
         <View style={styles.countryLeft}>
           {country.country_flag ? (
-            <Text style={styles.countryFlag}>{country.country_flag}</Text>
+            <Image source={{ uri: country.country_flag }} style={styles.countryFlag} resizeMode="contain" />
           ) : null}
           <Text style={[styles.countryName, { color: colors.foreground }]}>{country.country}</Text>
         </View>
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   countryLeft:            { flexDirection: 'row', alignItems: 'center', gap: 12 },
   countryRight:           { flexDirection: 'row', alignItems: 'center', gap: 8 },
   
-  countryFlag:            { fontSize: 18 },
+  countryFlag:            { width: 24, height: 16, borderRadius: 2 },
   countryName:            { fontSize: 15, fontWeight: '600' },
   matchCount:             { fontSize: 13, fontWeight: '600' },
   innerLeagueHeader:      { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 1, borderBottomWidth: 1 },
